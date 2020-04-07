@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: registry
+  labels:
+    app.kubernetes.io/name: registry
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: registry
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: registry
+    spec:
+      containers:
+      - name: registry
+        image: registry.hub.docker.com/library/registry:latest
+        env:
+        - name: REGISTRY_STORAGE_DELETE_ENABLED
+          value: 'true'
+      - name: spooler
+        image: registry.hub.docker.com/tliron/kubernetes-registry-spooler:latest
+        volumeMounts:
+        - name: spool
+          mountPath: /spool
+        env:
+        - name: RS_directory
+          value: /spool
+        - name: RS_registry
+          value: localhost:5000
+        - name: RS_verbose
+          value: '2'
+        # A future version of Kubernetes may allow for this:
+        # lifecycle:
+        #   type: sidecar
+        # See: https://github.com/kubernetes/enhancements/blob/master/keps/sig-apps/sidecarcontainers.md
+        #      https://banzaicloud.com/blog/k8s-sidecars/
+      volumes:
+      - name: spool
+        emptyDir: {}

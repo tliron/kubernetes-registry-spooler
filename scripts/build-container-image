@@ -1,0 +1,19 @@
+#!/bin/bash
+set -e
+
+HERE=$(dirname "$(readlink --canonicalize "$BASH_SOURCE")")
+. "$HERE/_env"
+. "$HERE/_trap"
+
+"$HERE/build"
+
+EXECUTABLE=registry-spooler
+IMAGE=kubernetes-registry-spooler
+LOCAL=localhost/$IMAGE
+BASE_IMAGE=registry.access.redhat.com/ubi8/ubi
+# ubi-minimal does not have "tar" which is needed for kubectl cp
+
+CONTAINER_ID=$(buildah from "$BASE_IMAGE")
+buildah add "$CONTAINER_ID" "$GOPATH/bin/$EXECUTABLE" /usr/bin/
+buildah config --entrypoint "/usr/bin/$EXECUTABLE" "$CONTAINER_ID"
+buildah commit "$CONTAINER_ID" "$LOCAL"

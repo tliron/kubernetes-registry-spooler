@@ -1,0 +1,16 @@
+#!/bin/bash
+set -e
+
+HERE=$(dirname "$(readlink --canonicalize "$BASH_SOURCE")")
+. "$HERE/_env"
+. "$HERE/_trap"
+
+function build () {
+	local TOOL=$1
+	pushd "$ROOT/$TOOL" > /dev/null
+	go install
+	popd > /dev/null
+	m "built $GOPATH/bin/$TOOL"
+}
+
+build registry-spooler

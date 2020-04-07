@@ -1,0 +1,13 @@
+#!/bin/bash
+set -e
+
+HERE=$(dirname "$(readlink --canonicalize "$BASH_SOURCE")")
+. "$HERE/_env"
+. "$HERE/_trap"
+
+IMAGE=kubernetes-registry-spooler
+LOCAL=localhost/$IMAGE
+REMOTE=docker://registry.hub.docker.com/tliron/$IMAGE
+
+skopeo delete "$REMOTE" || true
+buildah push "$LOCAL" "$REMOTE"
