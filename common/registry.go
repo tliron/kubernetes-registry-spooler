@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
 func PushToRegistry(readCloser io.ReadCloser, name string) error {
@@ -48,4 +49,18 @@ func DeleteFromRegistry(name string) error {
 	digest := tag.Digest(hash.String())
 
 	return remote.Delete(digest)
+}
+
+func PullFromRegistry(name string, path string) error {
+	tag, err := namepkg.NewTag(name)
+	if err != nil {
+		return err
+	}
+
+	image, err := remote.Image(tag)
+	if err != nil {
+		return err
+	}
+
+	return tarball.WriteToFile(path, tag, image)
 }
