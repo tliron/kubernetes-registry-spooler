@@ -42,11 +42,19 @@ func (self *Processor) Run() {
 func (self *Processor) Process() bool {
 	if path, ok := <-self.work; ok {
 		self.log.Debugf("processing: %s", path)
+
 		if strings.HasSuffix(path, "!") {
 			self.Delete(path)
 		} else {
 			self.Push(path)
 		}
+
+		if err := os.Remove(path); err == nil {
+			self.log.Infof("deleted file %s", path)
+		} else {
+			self.log.Errorf("could not delete file %s: %s", path, err.Error())
+		}
+
 		return true
 	} else {
 		self.log.Warning("no more work")
@@ -55,22 +63,25 @@ func (self *Processor) Process() bool {
 }
 
 func (self *Processor) Push(path string) {
-	if file, err := os.Open(path); err == nil {
-		name := self.getImageName(path)
+	name := self.getImageName(path)
 
-		self.log.Infof("pushing file %s to image %s", path, name)
-		if err := common.PushToRegistry(file, name); err == nil {
-			self.log.Infof("pushed image %s", name)
-			if err := os.Remove(path); err == nil {
-				self.log.Infof("deleted file %s", path)
-			} else {
-				self.log.Errorf("could not delete file %s: %s", path, err.Error())
-			}
-		} else {
-			self.log.Errorf("could not push image %s: %s", name, err.Error())
-		}
+	var err error
+	if strings.HasSuffix(path, ".tar") {
+		self.log.Infof("pushing tarball %s to image %s", path, name)
+		err = common.PushTarballToRegistry(path, name)
 	} else {
-		self.log.Errorf("could not read file %s: %s", path, err.Error())
+		self.log.Infof("pushing layer %s to image %s", path, name)
+		if file, err2 := os.Open(path); err2 == nil {
+			err = common.PushLayerToRegistry(file, name)
+		} else {
+			self.log.Errorf("could not read file %s: %s", path, err2.Error())
+		}
+	}
+
+	if err == nil {
+		self.log.Infof("pushed image %s", name)
+	} else {
+		self.log.Errorf("could not push image %s: %s", name, err.Error())
 	}
 }
 
@@ -80,11 +91,6 @@ func (self *Processor) Delete(path string) {
 	self.log.Infof("deleting image %s", name)
 	if err := common.DeleteFromRegistry(name); err == nil {
 		self.log.Infof("deleted image %s", name)
-		if err := os.Remove(path); err == nil {
-			self.log.Infof("deleted file %s", path)
-		} else {
-			self.log.Errorf("could not delete file %s: %s", path, err.Error())
-		}
 	} else {
 		self.log.Errorf("could not delete image %s: %s", name, err.Error())
 	}

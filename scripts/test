@@ -1,0 +1,65 @@
+#!/bin/bash
+set -e
+
+HERE=$(dirname "$(readlink --canonicalize "$BASH_SOURCE")")
+. "$HERE/_env"
+. "$HERE/_trap"
+
+m 'deploying registry with spooler'
+
+"$HERE/build-container-image"
+"$HERE/publish-container-image"
+
+kubectl create namespace mynamespace || true
+kubectl delete --filename="$ROOT/assets/registry-with-spooler.yaml" --namespace=mynamespace
+kubectl apply --filename="$ROOT/assets/registry-with-spooler.yaml" --namespace=mynamespace
+
+m 'waiting for pod to be ready'
+
+DEPLOYMENT=$(kubectl get deployments --selector=app.kubernetes.io/name=registry --namespace=mynamespace --output=jsonpath={.items[0].metadata.name})
+kubectl wait "deployments/$DEPLOYMENT" --namespace=mynamespace \
+	--for=condition=available
+
+POD=$(kubectl get pods --field-selector=status.phase=Running --selector=app.kubernetes.io/name=registry --namespace=mynamespace --output=jsonpath={.items[0].metadata.name})
+kubectl wait "pods/$POD" --namespace=mynamespace \
+	--for=condition=ready
+
+echo POD=$POD
+
+m 'pushing text file to "hello"'
+
+echo 'hello world' > /tmp/hello.txt
+kubectl cp /tmp/hello.txt $POD:/spool/hello.txt~ --container=spooler --namespace=mynamespace
+kubectl exec $POD --container=spooler --namespace=mynamespace -- mv /spool/hello.txt~ /spool/hello.txt
+
+sleep 1
+
+m 'pulling text file from to "hello"'
+
+kubectl exec $POD --container=spooler --namespace=mynamespace -- registry-pull hello /pull/hello.tar
+kubectl cp $POD:/pull/hello.tar /tmp/hello.tar --container=spooler --namespace=mynamespace
+kubectl exec $POD --container=spooler --namespace=mynamespace -- rm /pull/hello.tar
+
+mkdir --parents /tmp/hello
+tar --extract --file=/tmp/hello.tar --directory=/tmp/hello
+cat /tmp/hello/*.gz | gunzip
+
+m 'creating container image tarball'
+
+podman pull registry.hub.docker.com/library/registry
+podman tag registry.hub.docker.com/library/registry localhost:5000/myregistry
+rm --force /tmp/myregistry.tar
+podman save localhost:5000/myregistry --output /tmp/myregistry.tar
+
+m 'pushing container image to "myregistry"'
+
+kubectl cp /tmp/myregistry.tar $POD:/spool/myregistry.tar~ --container=spooler --namespace=mynamespace
+kubectl exec $POD --container=spooler --namespace=mynamespace -- mv /spool/myregistry.tar~ /spool/myregistry.tar
+
+sleep 3
+
+m 'pulling container image from "myregistry"'
+
+kubectl exec $POD --container=spooler --namespace=mynamespace -- registry-pull myregistry /pull/myregistry.tar
+kubectl cp $POD:/pull/myregistry.tar /tmp/pulled-myregistry.tar --container=spooler --namespace=mynamespace
+kubectl exec $POD --container=spooler --namespace=mynamespace -- rm /pull/myregistry.tar

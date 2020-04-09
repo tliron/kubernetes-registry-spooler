@@ -45,7 +45,7 @@ Installation
 Let's deploy our registry with the spooler sidecar. We include a
 [sample spec](assets/registry-with-spooler.yaml) that you can use as is or modify:
 
-    kubectl namespace create mynamespace
+    kubectl create namespace mynamespace
     kubectl apply --filename=assets/registry-with-spooler.yaml --namespace=mynamespace
 
 As you can see, it's a very straightforward spec and you could adapt the technique of adding a
@@ -58,7 +58,7 @@ See our [scripts](scripts/) to learn how to build it yourself.
 
 Once it's up and running let's get our registry's (first) pod name:
 
-    POD=$(kubectl get pods --selector=app.kubernetes.io/name=registry --field-selector=status.phase=Running --namespace=mynamespace --output=jsonpath={.items[0].metadata.name})
+    POD=$(kubectl get pods --selector=app.kubernetes.io/name=registry --namespace=mynamespace --output=jsonpath={.items[0].metadata.name})
 
 To see the spooler logs:
 
@@ -69,16 +69,36 @@ Pushing to the Registry
 
 Now we can copy files to the spooler:
 
-    kubectl cp myimage.tar $POD:/spool --container=spooler --namespace=mynamespace
+    echo 'hello world' > /tmp/hello.txt
+    kubectl cp /tmp/hello.txt $POD:/spool/hello.txt~ --container=spooler --namespace=mynamespace
+    kubectl exec $POD --container=spooler --namespace=mynamespace -- mv /spool/hello.txt~ /spool/hello.txt
 
-The filename, stripped of extensions, will become the container image name. E.g. `myimage.tar` will
-be pushed to the repository as `myimage`. Once it is pushed the file will be deleted from the spool
+Note that we are copying and then renaming the file. The reason is that we don't want the spooler
+to push the file before we are done writing to it. The spooler ignores files ending with "~".
+
+The filename, stripped of extensions, will become the container image name. E.g. `hello.txt` will
+be pushed to the repository as `hello`. Once it is pushed the file will be deleted from the spool
 directory. Check the logs (see above) to make sure everything worked as expected.
 
-Note that though you could potentially push any kind of file, most registry implementations would
-only be able to meaningfully store [tar files](https://www.gnu.org/software/tar/). That said, the
-tar does *not* have to contain a container image, and indeed any content can be pushed as long as
-it's tarred.  
+Note that you could potentially push *any* kind of file to the registry, as in this example of a
+text file. In this case the registry would assume that you are sending a raw (uncompressed) image
+layer.
+
+However, a *real* image would be a tarball with a `manifest.json`, a `sha256:` file, and the layers.
+The spooler treats files with the `.tar` extension as such.
+
+How would you go about creating such tarballs? You can use a tool like [podman](https://podman.io/).
+For example, let's save a tarball from Docker Hub:
+
+    podman pull registry.hub.docker.com/library/registry
+    podman tag registry.hub.docker.com/library/registry localhost:5000/myregistry
+    podman save localhost:5000/myregistry --output /tmp/myregistry.tar
+
+Note that we had to add a tag to the image so that it would match the internal push that the spooler
+will do. And now let's push it, exactly the same way as before:
+
+    kubectl cp /tmp/myregistry.tar $POD:/spool/myregistry.tar~ --container=spooler --namespace=mynamespace
+    kubectl exec $POD --container=spooler --namespace=mynamespace -- mv /spool/myregistry.tar~ /spool/myregistry.tar
 
 Deleting from the Registry
 --------------------------
@@ -87,15 +107,29 @@ Can we create anti-file on the spooler? Kinda! Just add "!" to the end of the fi
 of the file doesn't matter (and neither does the extension), so a simple `touch` command should be
 enough:
 
-    kubectl exec $POD --container=spooler --namespace=mynamespace -- touch /spool/myimage!
+    kubectl exec $POD --container=spooler --namespace=mynamespace -- touch /spool/hello!
 
 Pulling from the Registry
 -------------------------
 
-We provide a `registry-pull` tool for pulling files, as well as a directory to put them in. Of
-course it only makes sense to execute it in the container. Pulling could thus be done in three
-steps:
+We provide a `registry-pull` tool for pulling tarballs, as well as a directory to put them in. Of
+course it only makes sense to execute it in the sidecar. Pulling could thus be done in three steps:
 
-    kubectl exec $POD --container=spooler --namespace=mynamespace -- registry-pull myimage /pull/myimage.tar
-    kubectl cp $POD:/pull/myimage.tar myimage.tar --container=spooler --namespace=mynamespace
-    kubectl exec $POD --container=spooler --namespace=mynamespace -- rm /pull/myimage.tar
+    kubectl exec $POD --container=spooler --namespace=mynamespace -- registry-pull hello /pull/hello.tar
+    kubectl cp $POD:/pull/hello.tar /tmp/hello.tar --container=spooler --namespace=mynamespace
+    kubectl exec $POD --container=spooler --namespace=mynamespace -- rm /pull/hello.tar
+
+Note that the pulled file would *always* be a tarball, so it's a good idea to always use the `.tar`
+extension. You could untar it like so:
+
+    tar --extract --verbose --file=/tmp/hello.tar
+
+That should extract a `manifest.json`, a `sha256:` file, as well as a single compressed layer with a
+`.tar.gz` extension. We could extract the text like so:
+
+    cat c6b8929c27b26f5c6f322583f20183b804afc613b9af545502d8bce40d025fdf.tar.gz | gunzip
+    
+(Replace the filename with what was extracted from `hello.tar`)
+
+Note that in our example the `.tar` extension before the `.gz` should be ignored, because our layer
+is just a raw text file, not an actual tarball.

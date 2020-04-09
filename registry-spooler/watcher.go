@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/fsnotify/fsnotify"
 	"github.com/op/go-logging"
 )
@@ -53,6 +55,11 @@ func (self *Watcher) Process() {
 	case event, ok := <-self.watcher.Events:
 		if !ok {
 			self.log.Warning("no more events")
+			return
+		}
+
+		// Ignore temporary files
+		if strings.HasSuffix(event.Name, "~") {
 			return
 		}
 

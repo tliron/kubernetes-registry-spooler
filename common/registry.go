@@ -12,7 +12,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
-func PushToRegistry(readCloser io.ReadCloser, name string) error {
+func PushLayerToRegistry(readCloser io.ReadCloser, name string) error {
 	tag, err := namepkg.NewTag(name)
 	if err != nil {
 		return err
@@ -23,6 +23,20 @@ func PushToRegistry(readCloser io.ReadCloser, name string) error {
 	//layer = stream.NewLayer(readCloser)
 
 	image, err := mutate.AppendLayers(empty.Image, layer)
+	if err != nil {
+		return err
+	}
+
+	return remote.Write(tag, image)
+}
+
+func PushTarballToRegistry(path string, name string) error {
+	tag, err := namepkg.NewTag(name)
+	if err != nil {
+		return err
+	}
+
+	image, err := tarball.ImageFromPath(path, &tag)
 	if err != nil {
 		return err
 	}
@@ -51,7 +65,7 @@ func DeleteFromRegistry(name string) error {
 	return remote.Delete(digest)
 }
 
-func PullFromRegistry(name string, path string) error {
+func PullTarballFromRegistry(name string, path string) error {
 	tag, err := namepkg.NewTag(name)
 	if err != nil {
 		return err
