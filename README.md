@@ -17,7 +17,7 @@ it? But your reason might be more purposeful, e.g. using a local registry as a c
 inventory for in-cluster deployments, etc.
 
 Unfortunately, it can be difficult to access such a private registry from outside the cluster, even
-if all you need is to push images to it. You would need to enable some kind of ingress for HTTP,
+if all you need is to push images to it. You would need to enable some kind of way in for HTTP,
 which could entail
 full-blown [`Ingress`](https://kubernetes.io/docs/concepts/services-networking/ingress/) support,
 a [`LoadBalancer`-type `Service`](https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer),
@@ -36,8 +36,8 @@ e.g. the `cp` shorcut:
     kubectl cp myfile mypodname:/mydirectory/
 
 You might see where this is going: if we can copy files to the registry's pod, then we can add a
-sidecar that would pick up these files and push them to the registry for us. In other words: a
-spooler.
+sidecar that would pick up these files and locally push them to the registry for us. In other words:
+a spooler.
 
 Installation
 ------------
@@ -112,12 +112,9 @@ enough:
 Pulling from the Registry
 -------------------------
 
-We provide a `registry-pull` tool for pulling tarballs, as well as a directory to put them in. Of
-course it only makes sense to execute it in the sidecar. Pulling could thus be done in three steps:
+The sidecar has a `registry-pull` tool for pulling the tarball to stdout:
 
-    kubectl exec $POD --container=spooler --namespace=mynamespace -- registry-pull hello /pull/hello.tar
-    kubectl cp $POD:/pull/hello.tar /tmp/hello.tar --container=spooler --namespace=mynamespace
-    kubectl exec $POD --container=spooler --namespace=mynamespace -- rm /pull/hello.tar
+    kubectl exec $POD --container=spooler --namespace=mynamespace -- registry-pull hello > /tmp/hello.tar
 
 Note that the pulled file would *always* be a tarball, so it's a good idea to always use the `.tar`
 extension. You could untar it like so:
@@ -125,11 +122,24 @@ extension. You could untar it like so:
     tar --extract --verbose --file=/tmp/hello.tar
 
 That should extract a `manifest.json`, a `sha256:` file, as well as a single compressed layer with a
-`.tar.gz` extension. We could extract the text like so:
+`.tar.gz` extension. We could extract our original text file content like so:
 
     cat c6b8929c27b26f5c6f322583f20183b804afc613b9af545502d8bce40d025fdf.tar.gz | gunzip
-    
+
 (Replace the filename with what was extracted from `hello.tar`)
 
-Note that in our example the `.tar` extension before the `.gz` should be ignored, because our layer
-is just a raw text file, not an actual tarball.
+Note that in our example the `.tar` extension before the `.gz` is misleading, because our layer is
+just a raw text file, not an actual tarball.
+
+Client API
+----------
+
+All the above could be fine for scripting, but also provided here is a Go API that does it all
+programmatically. See the [client/](client/) directory. You can import it directly into your
+program:
+
+```go
+import (
+    spooler "github.com/tliron/kubernetes-registry-spooler/client"
+)
+```

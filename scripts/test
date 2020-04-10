@@ -7,11 +7,12 @@ HERE=$(dirname "$(readlink --canonicalize "$BASH_SOURCE")")
 
 m 'deploying registry with spooler'
 
+kubectl create namespace mynamespace || true
+kubectl delete --filename="$ROOT/assets/registry-with-spooler.yaml" --namespace=mynamespace
+
 "$HERE/build-container-image"
 "$HERE/publish-container-image"
 
-kubectl create namespace mynamespace || true
-kubectl delete --filename="$ROOT/assets/registry-with-spooler.yaml" --namespace=mynamespace
 kubectl apply --filename="$ROOT/assets/registry-with-spooler.yaml" --namespace=mynamespace
 
 m 'waiting for pod to be ready'
@@ -34,11 +35,9 @@ kubectl exec $POD --container=spooler --namespace=mynamespace -- mv /spool/hello
 
 sleep 1
 
-m 'pulling text file from to "hello"'
+m 'pulling text file from "hello"'
 
-kubectl exec $POD --container=spooler --namespace=mynamespace -- registry-pull hello /pull/hello.tar
-kubectl cp $POD:/pull/hello.tar /tmp/hello.tar --container=spooler --namespace=mynamespace
-kubectl exec $POD --container=spooler --namespace=mynamespace -- rm /pull/hello.tar
+kubectl exec $POD --container=spooler --namespace=mynamespace -- registry-pull hello > /tmp/hello.tar
 
 mkdir --parents /tmp/hello
 tar --extract --file=/tmp/hello.tar --directory=/tmp/hello
@@ -60,6 +59,4 @@ sleep 3
 
 m 'pulling container image from "myregistry"'
 
-kubectl exec $POD --container=spooler --namespace=mynamespace -- registry-pull myregistry /pull/myregistry.tar
-kubectl cp $POD:/pull/myregistry.tar /tmp/pulled-myregistry.tar --container=spooler --namespace=mynamespace
-kubectl exec $POD --container=spooler --namespace=mynamespace -- rm /pull/myregistry.tar
+kubectl exec $POD --container=spooler --namespace=mynamespace -- registry-pull myregistry > /tmp/myregistry-pulled.tar

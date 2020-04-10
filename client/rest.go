@@ -10,32 +10,13 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
-func (self *Client) CopyToContainer(podName string, sourcePath string, targetPath string) error {
-	if reader, err := os.Open(sourcePath); err == nil {
-		defer reader.Close()
-		return self.WriteToContainer(podName, reader, targetPath)
-	} else {
-		return err
-	}
-}
-
-func (self *Client) CopyFromContainer(podName string, sourcePath string, targetPath string) error {
-	if writer, err := os.Create(targetPath); err == nil {
-		defer writer.Close()
-		return self.ReadFromContainer(podName, writer, sourcePath)
-	} else {
-		return err
-	}
-}
-
 func (self *Client) WriteToContainer(podName string, reader io.Reader, targetPath string) error {
 	dir := filepath.Dir(targetPath)
-	if err := self.Exec(podName, nil, nil, "mkdir", "--parents", dir); err != nil {
+	if err := self.Exec(podName, nil, nil, "mkdir", "--parents", dir); err == nil {
+		return self.Exec(podName, reader, nil, "cp", "/dev/stdin", targetPath)
+	} else {
 		return err
 	}
-
-	// See: https://stackoverflow.com/a/57952887
-	return self.Exec(podName, reader, nil, "cp", "/dev/stdin", targetPath)
 }
 
 func (self *Client) ReadFromContainer(podName string, writer io.Writer, sourcePath string) error {

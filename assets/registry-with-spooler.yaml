@@ -27,8 +27,6 @@ spec:
         volumeMounts:
         - name: spool
           mountPath: /spool
-        - name: pull
-          mountPath: /pull
         env:
         - name: RS_directory
           value: /spool
@@ -43,6 +41,4 @@ spec:
         #      https://banzaicloud.com/blog/k8s-sidecars/
       volumes:
       - name: spool
-        emptyDir: {}
-      - name: pull
         emptyDir: {}

@@ -3,11 +3,16 @@ package client
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
+
+func (self *Client) getPath(imageName string) string {
+	return filepath.Join(self.SpoolDirectory, imageName)
+}
 
 func (self *Client) getPods() (*core.PodList, error) {
 	labels_ := labels.Set(map[string]string{
