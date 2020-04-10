@@ -100,5 +100,6 @@ func (self *Processor) getImageName(path string) string {
 	extension := filepath.Ext(path)
 	name := filepath.Base(path)
 	name = name[:len(name)-len(extension)]
+	name = strings.ReplaceAll(name, "\\", "/")
 	return fmt.Sprintf("%s/%s", self.registry, name)
 }

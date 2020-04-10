@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"io"
 	"io/ioutil"
 	"os"
@@ -79,5 +80,13 @@ func PullTarballFromRegistry(name string, path string) error {
 		}
 	} else {
 		return err
+	}
+}
+
+func ListImages(registry string) ([]string, error) {
+	if registry_, err := namepkg.NewInsecureRegistry(registry); err == nil {
+		return remote.Catalog(context.TODO(), registry_)
+	} else {
+		return nil, err
 	}
 }

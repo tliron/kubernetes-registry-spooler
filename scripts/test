@@ -5,17 +5,17 @@ HERE=$(dirname "$(readlink --canonicalize "$BASH_SOURCE")")
 . "$HERE/_env"
 . "$HERE/_trap"
 
-m 'deploying registry with spooler'
-
 kubectl create namespace mynamespace || true
-kubectl delete --filename="$ROOT/assets/registry-with-spooler.yaml" --namespace=mynamespace
+kubectl delete --filename="$ROOT/assets/registry-with-spooler.yaml" --namespace=mynamespace || true
+
+m 'building "kubernetes-registry-spool" image'
 
 "$HERE/build-container-image"
 "$HERE/publish-container-image"
 
-kubectl apply --filename="$ROOT/assets/registry-with-spooler.yaml" --namespace=mynamespace
+m 'deploying registry with spooler'
 
-m 'waiting for pod to be ready'
+kubectl apply --filename="$ROOT/assets/registry-with-spooler.yaml" --namespace=mynamespace
 
 DEPLOYMENT=$(kubectl get deployments --selector=app.kubernetes.io/name=registry --namespace=mynamespace --output=jsonpath={.items[0].metadata.name})
 kubectl wait "deployments/$DEPLOYMENT" --namespace=mynamespace \
@@ -27,36 +27,43 @@ kubectl wait "pods/$POD" --namespace=mynamespace \
 
 echo POD=$POD
 
-m 'pushing text file to "hello"'
+m 'pushing text file to "catalog/hello"'
 
 echo 'hello world' > /tmp/hello.txt
-kubectl cp /tmp/hello.txt $POD:/spool/hello.txt~ --container=spooler --namespace=mynamespace
-kubectl exec $POD --container=spooler --namespace=mynamespace -- mv /spool/hello.txt~ /spool/hello.txt
+kubectl cp /tmp/hello.txt $POD:/spool/catalog\\hello.txt~ --container=spooler --namespace=mynamespace
+kubectl exec $POD --container=spooler --namespace=mynamespace -- mv /spool/catalog\\hello.txt~ /spool/catalog\\hello.txt
 
 sleep 1
 
-m 'pulling text file from "hello"'
+m 'pulling text file from "catalog/hello"'
 
-kubectl exec $POD --container=spooler --namespace=mynamespace -- registry-pull hello > /tmp/hello.tar
+kubectl exec $POD --container=spooler --namespace=mynamespace -- registry pull catalog/hello > /tmp/hello.tar
 
+rm --recursive --force /tmp/hello
 mkdir --parents /tmp/hello
 tar --extract --file=/tmp/hello.tar --directory=/tmp/hello
 cat /tmp/hello/*.gz | gunzip
 
 m 'creating container image tarball'
 
-podman pull registry.hub.docker.com/library/registry
-podman tag registry.hub.docker.com/library/registry localhost:5000/myregistry
-rm --force /tmp/myregistry.tar
-podman save localhost:5000/myregistry --output /tmp/myregistry.tar
+podman rmi localhost:5000/catalog/myimage || true
+podman rmi registry.hub.docker.com/library/hello-world || true
+podman pull registry.hub.docker.com/library/hello-world
+podman tag registry.hub.docker.com/library/hello-world localhost:5000/catalog/myimage
+rm --force /tmp/myimage.tar
+podman save localhost:5000/catalog/myimage --output /tmp/myimage.tar
 
-m 'pushing container image to "myregistry"'
+m 'pushing container image tarball to "catalog/myimage"'
 
-kubectl cp /tmp/myregistry.tar $POD:/spool/myregistry.tar~ --container=spooler --namespace=mynamespace
-kubectl exec $POD --container=spooler --namespace=mynamespace -- mv /spool/myregistry.tar~ /spool/myregistry.tar
+kubectl cp /tmp/myimage.tar $POD:/spool/catalog\\myimage.tar~ --container=spooler --namespace=mynamespace
+kubectl exec $POD --container=spooler --namespace=mynamespace -- mv /spool/catalog\\myimage.tar~ /spool/catalog\\myimage.tar
 
 sleep 3
 
-m 'pulling container image from "myregistry"'
+m 'pulling container image tarball from "catalog/myimage"'
 
-kubectl exec $POD --container=spooler --namespace=mynamespace -- registry-pull myregistry > /tmp/myregistry-pulled.tar
+kubectl exec $POD --container=spooler --namespace=mynamespace -- registry pull catalog/myimage > /tmp/myimage-pulled.tar
+
+m 'listing images'
+
+kubectl exec $POD --container=spooler --namespace=mynamespace -- registry list

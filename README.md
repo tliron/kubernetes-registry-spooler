@@ -75,6 +75,8 @@ Now we can copy files to the spooler:
 
 Note that we are copying and then renaming the file. The reason is that we don't want the spooler
 to push the file before we are done writing to it. The spooler ignores files ending with "~".
+Also note that backslashes will be converted to slashes (because slashes cannot be used in
+filenames).
 
 The filename, stripped of extensions, will become the container image name. E.g. `hello.txt` will
 be pushed to the repository as `hello`. Once it is pushed the file will be deleted from the spool
@@ -90,15 +92,17 @@ The spooler treats files with the `.tar` extension as such.
 How would you go about creating such tarballs? You can use a tool like [podman](https://podman.io/).
 For example, let's save a tarball from Docker Hub:
 
-    podman pull registry.hub.docker.com/library/registry
-    podman tag registry.hub.docker.com/library/registry localhost:5000/myregistry
-    podman save localhost:5000/myregistry --output /tmp/myregistry.tar
+    podman pull registry.hub.docker.com/library/hello-world
+    podman tag registry.hub.docker.com/library/hello-world localhost:5000/catalog/myimage
+    podman save localhost:5000/catalog/myimage --output /tmp/myimage.tar
 
 Note that we had to add a tag to the image so that it would match the internal push that the spooler
 will do. And now let's push it, exactly the same way as before:
 
-    kubectl cp /tmp/myregistry.tar $POD:/spool/myregistry.tar~ --container=spooler --namespace=mynamespace
-    kubectl exec $POD --container=spooler --namespace=mynamespace -- mv /spool/myregistry.tar~ /spool/myregistry.tar
+    kubectl cp /tmp/myimage.tar $POD:/spool/catalog\\myimage.tar~ --container=spooler --namespace=mynamespace
+    kubectl exec $POD --container=spooler --namespace=mynamespace -- mv /spool/catalog\\myimage.tar~ /spool/catalog\\myimage.tar
+
+Note the use of backslash (escaped for bash) in this example.
 
 Deleting from the Registry
 --------------------------
@@ -112,9 +116,9 @@ enough:
 Pulling from the Registry
 -------------------------
 
-The sidecar has a `registry-pull` tool for pulling the tarball to stdout:
+The sidecar has a `registry` tool for pulling the tarball to stdout:
 
-    kubectl exec $POD --container=spooler --namespace=mynamespace -- registry-pull hello > /tmp/hello.tar
+    kubectl exec $POD --container=spooler --namespace=mynamespace -- registry pull hello > /tmp/hello.tar
 
 Note that the pulled file would *always* be a tarball, so it's a good idea to always use the `.tar`
 extension. You could untar it like so:
@@ -130,6 +134,11 @@ That should extract a `manifest.json`, a `sha256:` file, as well as a single com
 
 Note that in our example the `.tar` extension before the `.gz` is misleading, because our layer is
 just a raw text file, not an actual tarball.
+
+Listing Images in the Registry
+------------------------------
+
+    kubectl exec $POD --container=spooler --namespace=mynamespace -- registry list
 
 Client API
 ----------

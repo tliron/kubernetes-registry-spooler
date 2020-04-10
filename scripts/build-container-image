@@ -8,7 +8,7 @@ HERE=$(dirname "$(readlink --canonicalize "$BASH_SOURCE")")
 "$HERE/build"
 
 EXECUTABLE1=registry-spooler
-EXECUTABLE2=registry-pull
+EXECUTABLE2=registry
 IMAGE=kubernetes-registry-spooler
 LOCAL=localhost/$IMAGE
 BASE_IMAGE=registry.access.redhat.com/ubi8/ubi

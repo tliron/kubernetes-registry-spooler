@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,7 +12,7 @@ import (
 )
 
 func (self *Client) getPath(imageName string) string {
-	return filepath.Join(self.SpoolDirectory, imageName)
+	return filepath.Join(self.SpoolDirectory, strings.ReplaceAll(imageName, "/", "\\"))
 }
 
 func (self *Client) getPods() (*core.PodList, error) {

@@ -5,6 +5,6 @@ import (
 )
 
 func main() {
-	err := command.Execute()
+	err := rootCommand.Execute()
 	common.FailOnError(err)
 }
