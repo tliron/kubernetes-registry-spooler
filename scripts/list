@@ -1,0 +1,14 @@
+#!/bin/bash
+set -e
+
+HERE=$(dirname "$(readlink --canonicalize "$BASH_SOURCE")")
+. "$HERE/_env"
+
+NAMESPACE=$1
+if [ -n "$NAMESPACE" ]; then
+	OPTIONS="--namespace=$NAMESPACE"
+fi
+
+POD=$(first_pod $OPTIONS)
+
+kubectl exec $POD --container=spooler $OPTIONS -- registry list

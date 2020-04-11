@@ -1,8 +1,12 @@
 
-_HERE=$(dirname "$(readlink --canonicalize "$BASH_SOURCE")")
+function slash_to_backslash () {
+	echo "${1/\//\\}"
+}
 
-. "$_HERE/_functions"
+function first_deployment () {
+	kubectl get deployments --selector=app.kubernetes.io/name=registry --output=jsonpath={.items[0].metadata.name} "$@"
+}
 
-ROOT=$(readlink --canonicalize "$_HERE/..")
-
-GOPATH=${GOPATH:-$HOME/go}
+function first_pod () {
+	kubectl get pods --selector=app.kubernetes.io/name=registry --output=jsonpath={.items[0].metadata.name} "$@"
+}

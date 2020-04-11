@@ -1,0 +1,20 @@
+#!/bin/bash
+set -e
+
+HERE=$(dirname "$(readlink --canonicalize "$BASH_SOURCE")")
+. "$HERE/_env"
+
+if (( "$#" < 1 )); then
+	echo 'usage: pull [IMAGE NAME]'
+	exit 1
+fi
+
+IMAGE=$1
+NAMESPACE=$2
+if [ -n "$NAMESPACE" ]; then
+	OPTIONS="--namespace=$NAMESPACE"
+fi
+
+POD=$(first_pod $OPTIONS)
+
+kubectl exec "$POD" --container=spooler $OPTIONS -- registry pull "$IMAGE"

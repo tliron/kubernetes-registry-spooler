@@ -1,0 +1,13 @@
+#!/bin/bash
+set -e
+
+HERE=$(dirname "$(readlink --canonicalize "$BASH_SOURCE")")
+
+if (( "$#" != 1 )); then
+	echo 'usage: namespace [NAMESPACE]'
+	exit 1
+fi
+
+NAMESPACE=$1
+
+kubectl config set-context --current --namespace="$NAMESPACE"

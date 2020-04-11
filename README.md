@@ -4,8 +4,8 @@ Kubernetes Registry Spooler
 A sidecar to update an OCI/Docker container image registry using files instead of RESTful HTTP
 calls.
 
-What? Why?
-----------
+The Problem
+-----------
 
 You're here because you need to run your own container image registry, for whatever reason:
 development, testing, security, etc. The "right" way to do it is to run the registry outside of your
@@ -25,62 +25,69 @@ a [`kubectl port-forward`](https://kubernetes.io/docs/tasks/access-application-c
 or even a [`NodePort`](https://kubernetes.io/docs/concepts/services-networking/service/#nodeport)
 (a.k.a. "giving up"), all of which have complex requirements and drawbacks.
 
-However, we can make use of a feature that will *always* be available as long as you can access
-the cluster's API server: the ability to stream data to a command over its RESTful interface (via
-SPDY). It is available via client libraries (e.g.
-[in the Go client](https://pkg.go.dev/k8s.io/client-go/tools/remotecommand))
-or via the CLI as
-[`kubectl exec`](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#exec),
-e.g. the `cp` shorcut:
+The Solution
+------------
+
+We can make use of a feature that will *always* be available as long as you can access the cluster's
+API server: the ability to stream data to a command over its RESTful interface (via SPDY). It's
+supported by client libraries (e.g. [in the Go client](https://pkg.go.dev/k8s.io/client-go/tools/remotecommand))
+and even in the CLI as
+[`kubectl exec`](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#exec)
+and the related `kubectl cp` shortcut:
 
     kubectl cp myfile mypodname:/mydirectory/
 
 You might see where this is going: if we can copy files to the registry's pod, then we can add a
-sidecar that would pick up these files and locally push them to the registry for us. In other words:
+sidecar that would pick up these files and push them to the in-pod registry for us. In other words:
 a spooler.
+
+(Small quibble: actually `kubectl cp` specifically requires the `tar` tool to be available in the
+remote container, so it won't work absolutely everywhere. This is
+[a known issue](https://github.com/kubernetes/kubernetes/issues/58512). However, the Go client does
+not have this limitation and you can choose your remote command.) 
 
 Installation
 ------------
 
-Let's deploy our registry with the spooler sidecar. We include a
-[sample spec](assets/registry-with-spooler.yaml) that you can use as is or modify:
+Let's deploy our registry with the spooler sidecar:
 
     kubectl create namespace mynamespace
-    kubectl apply --filename=assets/registry-with-spooler.yaml --namespace=mynamespace
+    scripts/install mynamespace
 
+We are using our [sample spec](assets/registry-with-spooler.yaml) that you can use as is or modify.
 As you can see, it's a very straightforward spec and you could adapt the technique of adding a
 sidecar to more elaborate registry servers, such as [Quay](https://github.com/quay/quay) or
-[Harbor](https://github.com/goharbor/harbor).
+[Harbor](https://github.com/goharbor/harbor). To install:
 
 Also note that this spec uses our
 [pre-built container image on Docker Hub](https://hub.docker.com/r/tliron/kubernetes-registry-spooler).
-See our [scripts](scripts/) to learn how to build it yourself.  
+See our [development](development/) directory to learn how to build it yourself.  
 
-Once it's up and running let's get our registry's (first) pod name:
+We can now see the spooler logs:
 
-    POD=$(kubectl get pods --selector=app.kubernetes.io/name=registry --namespace=mynamespace --output=jsonpath={.items[0].metadata.name})
+    scripts/logs mynamespace
 
-To see the spooler logs:
+Note that for all our scripts the final namespace argument is optional. If not specified, it will
+use the currently configured namespace. You can configure that:
 
-    kubectl logs $POD --container=spooler --namespace=mynamespace
+    scripts/namespace mynamespace
 
 Pushing to the Registry
 -----------------------
 
-Now we can copy files to the spooler:
-
     echo 'hello world' > /tmp/hello.txt
-    kubectl cp /tmp/hello.txt $POD:/spool/hello.txt~ --container=spooler --namespace=mynamespace
-    kubectl exec $POD --container=spooler --namespace=mynamespace -- mv /spool/hello.txt~ /spool/hello.txt
+    scripts/push /tmp/hello.txt hello mynamespace
 
-Note that we are copying and then renaming the file. The reason is that we don't want the spooler
-to push the file before we are done writing to it. The spooler ignores files ending with "~".
-Also note that backslashes will be converted to slashes (because slashes cannot be used in
-filenames).
+If you look into [`scripts/push`](scripts/push) you'll see that we are copying and then renaming the
+file. The reason is that we don't want the spooler to push the file before we are done writing to
+it. The spooler ignores files ending with "~".
 
-The filename, stripped of extensions, will become the container image name. E.g. `hello.txt` will
-be pushed to the repository as `hello`. Once it is pushed the file will be deleted from the spool
-directory. Check the logs (see above) to make sure everything worked as expected.
+The filename in `/spool/`, stripped of extensions, will become the container image name. E.g.
+`hello.txt` will be pushed to the repository as `hello`. Note that backslashes will be converted to
+slashes for the image name (we do this because slashes cannot be used in filenames). 
+
+Once it is pushed the file will be deleted from the spool directory. Check the logs (see above) to
+make sure everything worked as expected.
 
 Note that you could potentially push *any* kind of file to the registry, as in this example of a
 text file. In this case the registry would assume that you are sending a raw (uncompressed) image
@@ -99,51 +106,48 @@ For example, let's save a tarball from Docker Hub:
 Note that we had to add a tag to the image so that it would match the internal push that the spooler
 will do. And now let's push it, exactly the same way as before:
 
-    kubectl cp /tmp/myimage.tar $POD:/spool/catalog\\myimage.tar~ --container=spooler --namespace=mynamespace
-    kubectl exec $POD --container=spooler --namespace=mynamespace -- mv /spool/catalog\\myimage.tar~ /spool/catalog\\myimage.tar
-
-Note the use of backslash (escaped for bash) in this example.
+    scripts/push /tmp/myimage.tar catalog/myimage mynamespace
 
 Deleting from the Registry
 --------------------------
 
-Can we create anti-file on the spooler? Kinda! Just add "!" to the end of the filename. The content
-of the file doesn't matter (and neither does the extension), so a simple `touch` command should be
-enough:
+    scripts/delete hello mynamespace
 
-    kubectl exec $POD --container=spooler --namespace=mynamespace -- touch /spool/hello!
+How does this work? Can we create anti-file on the spooler? Kinda! We just add "!" to the end of the
+filename, which the spooler interprets to mean deletion. The content of the file doesn't matter (and
+neither does the extension), so a simple `touch` is enough.
 
 Pulling from the Registry
 -------------------------
 
-The sidecar has a `registry` tool for pulling the tarball to stdout:
+    scripts/pull hello mynamespace > hello.tar
 
-    kubectl exec $POD --container=spooler --namespace=mynamespace -- registry pull hello > /tmp/hello.tar
+This works by using a `registry` tool that we've included in the sidecar.
 
 Note that the pulled file would *always* be a tarball, so it's a good idea to always use the `.tar`
-extension. You could untar it like so:
+extension, as we did here. You could pull and untar in one line, like so:
 
-    tar --extract --verbose --file=/tmp/hello.tar
+    scripts/pull hello mynamespace | tar --extract --verbose
 
 That should extract a `manifest.json`, a `sha256:` file, as well as a single compressed layer with a
-`.tar.gz` extension. We could extract our original text file content like so:
+`.tar.gz` extension. Note that in our example the `.tar` extension before the `.gz` is misleading,
+because our layer is just a raw text file, not an actual tarball.
 
-    cat c6b8929c27b26f5c6f322583f20183b804afc613b9af545502d8bce40d025fdf.tar.gz | gunzip
+We can untar that one layer and unzip it in one line:
 
-(Replace the filename with what was extracted from `hello.tar`)
+    scripts/pull hello mynamespace | tar --extract --to-stdout *.gz | gunzip
 
-Note that in our example the `.tar` extension before the `.gz` is misleading, because our layer is
-just a raw text file, not an actual tarball.
+Listing the Contents of the Registry
+------------------------------------
 
-Listing Images in the Registry
-------------------------------
+    scripts/list mynamespace
 
-    kubectl exec $POD --container=spooler --namespace=mynamespace -- registry list
+This again uses the `registry` tool in the sidecar.
 
 Client API
 ----------
 
-All the above could be fine for scripting, but also provided here is a Go API that does it all
+All these scripts could be fine for scripting, but also provided here is a Go API that does it all
 programmatically. See the [client/](client/) directory. You can import it directly into your
 program:
 

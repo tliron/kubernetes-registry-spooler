@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+
+HERE=$(dirname "$(readlink --canonicalize "$BASH_SOURCE")")
+. "$HERE/_env"
+
+NAMESPACE=$1
+if [ -n "$NAMESPACE" ]; then
+	OPTIONS="--namespace=$NAMESPACE"
+fi
+
+kubectl apply --filename="$HERE/../assets/registry-with-spooler.yaml" $OPTIONS
+
+DEPLOYMENT=$(first_deployment $OPTIONS)
+kubectl wait "deployments/$DEPLOYMENT" --for=condition=available $OPTIONS
+
+POD=$(first_pod $OPTIONS)
+kubectl wait "pods/$POD" --for=condition=ready $OPTIONS

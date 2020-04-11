@@ -1,0 +1,29 @@
+#!/bin/bash
+set -e
+
+HERE=$(dirname "$(readlink --canonicalize "$BASH_SOURCE")")
+. "$HERE/_env"
+
+if (( "$#" < 2 )); then
+	echo 'usage: push [FILE PATH] [IMAGE NAME]'
+	exit 1
+fi
+
+FILE=$1
+IMAGE=$2
+NAMESPACE=$3
+if [ -n "$NAMESPACE" ]; then
+	OPTIONS="--namespace=$NAMESPACE"
+fi
+
+POD=$(first_pod $OPTIONS)
+IMAGE=$(slash_to_backslash "$IMAGE")
+
+# Keep extension (if there is one)
+if [[ $FILE == *.* ]]; then
+	EXTENSION=${FILE##*.}
+	IMAGE=$IMAGE.$EXTENSION
+fi
+
+kubectl cp "$FILE" "$POD:/spool/$IMAGE~" --container=spooler $OPTIONS
+kubectl exec "$POD" --container=spooler $OPTIONS -- mv "/spool/$IMAGE~" "/spool/$IMAGE"
