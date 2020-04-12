@@ -78,9 +78,9 @@ Pushing to the Registry
     echo 'hello world' > /tmp/hello.txt
     scripts/push /tmp/hello.txt hello mynamespace
 
-If you look into [`scripts/push`](scripts/push) you'll see that we are copying and then renaming the
-file. The reason is that we don't want the spooler to push the file before we are done writing to
-it. The spooler ignores files ending with "~".
+How does [this work](scripts/push)? You'll see that we are copying and then renaming the file to the
+pod's `/spool/` directory. We do this in two stages because we don't want the spooler to push the
+file before we are done writing to it. The spooler ignores files ending with `~`.
 
 The filename in `/spool/`, stripped of extensions, will become the container image name. E.g.
 `hello.txt` will be pushed to the repository as `hello`. Note that backslashes will be converted to
@@ -94,37 +94,38 @@ text file. In this case the registry would assume that you are sending a raw (un
 layer.
 
 However, a *real* image would be a tarball with a `manifest.json`, a `sha256:` file, and the layers.
-The spooler treats files with the `.tar` extension as such.
+The spooler specially treats files with the `.tar`, `.tar.gz`, and `.tgz` extensions as such.
 
-How would you go about creating such tarballs? You can use a tool like [podman](https://podman.io/).
-For example, let's save a tarball from Docker Hub:
+How would you go about creating such tarballs from an existing registry? You can use a tool like
+[podman](https://podman.io/). For example, let's save a tarball from Docker Hub:
 
     podman pull registry.hub.docker.com/library/hello-world
     podman tag registry.hub.docker.com/library/hello-world localhost:5000/catalog/myimage
     podman save localhost:5000/catalog/myimage --output /tmp/myimage.tar
+    gzip /tmp/myimage.tar
 
 Note that we had to add a tag to the image so that it would match the internal push that the spooler
 will do. And now let's push it, exactly the same way as before:
 
-    scripts/push /tmp/myimage.tar catalog/myimage mynamespace
+    scripts/push /tmp/myimage.tar.gz catalog/myimage mynamespace
 
 Deleting from the Registry
 --------------------------
 
     scripts/delete hello mynamespace
 
-How does this work? Can we create anti-file on the spooler? Kinda! We just add "!" to the end of the
-filename, which the spooler interprets to mean deletion. The content of the file doesn't matter (and
-neither does the extension), so a simple `touch` is enough.
+How does [this work](scripts/delete)?  Can we create an anti-file on the spooler? Kinda! We just add
+`!` to the end of the filename, which the spooler interprets to mean deletion. The content of the
+file doesn't matter (and neither does the extension), so a simple `touch` is enough.
 
 Pulling from the Registry
 -------------------------
 
     scripts/pull hello mynamespace > hello.tar
 
-This works by using a `registry` tool that we've included in the sidecar.
+[This works](scripts/pull) by using a `registry` tool that we've included in the sidecar.
 
-Note that the pulled file would *always* be a tarball, so it's a good idea to always use the `.tar`
+Note that the pulled file will *always* be a tarball, so it's a good idea to always use the `.tar`
 extension, as we did here. You could pull and untar in one line, like so:
 
     scripts/pull hello mynamespace | tar --extract --verbose
@@ -133,7 +134,7 @@ That should extract a `manifest.json`, a `sha256:` file, as well as a single com
 `.tar.gz` extension. Note that in our example the `.tar` extension before the `.gz` is misleading,
 because our layer is just a raw text file, not an actual tarball.
 
-We can untar that one layer and unzip it in one line:
+We can untar that one layer and unzip it in one line, like so:
 
     scripts/pull hello mynamespace | tar --extract --to-stdout *.gz | gunzip
 
@@ -142,7 +143,7 @@ Listing the Contents of the Registry
 
     scripts/list mynamespace
 
-This again uses the `registry` tool in the sidecar.
+[This works](scripts/list) again by using the `registry` tool in the sidecar.
 
 Client API
 ----------

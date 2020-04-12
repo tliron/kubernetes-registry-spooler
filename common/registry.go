@@ -1,6 +1,7 @@
 package common
 
 import (
+	"compress/gzip"
 	"context"
 	"io"
 	"io/ioutil"
@@ -33,6 +34,26 @@ func PushLayerToRegistry(readCloser io.ReadCloser, name string) error {
 func PushTarballToRegistry(path string, name string) error {
 	if tag, err := namepkg.NewTag(name); err == nil {
 		if image, err := tarball.ImageFromPath(path, &tag); err == nil {
+			return remote.Write(tag, image)
+		} else {
+			return err
+		}
+	} else {
+		return err
+	}
+}
+
+func PushGzippedTarballToRegistry(path string, name string) error {
+	if tag, err := namepkg.NewTag(name); err == nil {
+		opener := func() (io.ReadCloser, error) {
+			if reader, err := os.Open(path); err == nil {
+				return gzip.NewReader(reader)
+			} else {
+				return nil, err
+			}
+		}
+
+		if image, err := tarball.Image(opener, &tag); err == nil {
 			return remote.Write(tag, image)
 		} else {
 			return err

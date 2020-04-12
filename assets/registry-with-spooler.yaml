@@ -28,11 +28,12 @@ spec:
         - name: spool
           mountPath: /spool
         env:
-        - name: RS_directory
+        # Vars with the "REGISTRY_SPOOLER_" prefix become CLI flags 
+        - name: REGISTRY_SPOOLER_directory
           value: /spool
-        - name: RS_registry
+        - name: REGISTRY_SPOOLER_registry
           value: localhost:5000
-        - name: RS_verbose
+        - name: REGISTRY_SPOOLER_verbose
           value: '2'
         # A future version of Kubernetes may allow for this:
         # lifecycle:

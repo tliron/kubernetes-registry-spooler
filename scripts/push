@@ -21,7 +21,7 @@ IMAGE=$(slash_to_backslash "$IMAGE")
 
 # Keep extension (if there is one)
 if [[ $FILE == *.* ]]; then
-	EXTENSION=${FILE##*.}
+	EXTENSION=${FILE#*.}
 	IMAGE=$IMAGE.$EXTENSION
 fi
 

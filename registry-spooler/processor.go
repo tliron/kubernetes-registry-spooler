@@ -66,7 +66,10 @@ func (self *Processor) Push(path string) {
 	name := self.getImageName(path)
 
 	var err error
-	if strings.HasSuffix(path, ".tar") {
+	if strings.HasSuffix(path, ".tar.gz") || strings.HasSuffix(path, ".tgz") {
+		self.log.Infof("pushing gzipped tarball %s to image %s", path, name)
+		err = common.PushGzippedTarballToRegistry(path, name)
+	} else if strings.HasSuffix(path, ".tar") {
 		self.log.Infof("pushing tarball %s to image %s", path, name)
 		err = common.PushTarballToRegistry(path, name)
 	} else {
@@ -97,9 +100,11 @@ func (self *Processor) Delete(path string) {
 }
 
 func (self *Processor) getImageName(path string) string {
-	extension := filepath.Ext(path)
 	name := filepath.Base(path)
-	name = name[:len(name)-len(extension)]
+	if dot := strings.Index(name, "."); dot != -1 {
+		// Note: filepath.Ext will return the last extension only
+		name = name[:dot]
+	}
 	name = strings.ReplaceAll(name, "\\", "/")
 	return fmt.Sprintf("%s/%s", self.registry, name)
 }

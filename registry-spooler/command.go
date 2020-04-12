@@ -17,10 +17,10 @@ func init() {
 	command.PersistentFlags().StringVarP(&logTo, "log", "l", "", "log to file (defaults to stderr)")
 	command.PersistentFlags().CountVarP(&verbose, "verbose", "v", "add a log verbosity level (can be used twice)")
 	command.PersistentFlags().BoolVarP(&colorize, "colorize", "z", true, "colorize output")
-	command.PersistentFlags().StringVarP(&directoryPath, "directory", "d", "", "spool directory path")
-	command.PersistentFlags().StringVarP(&registry, "registry", "r", "", "registry URL")
+	command.PersistentFlags().StringVarP(&directoryPath, "directory", "d", "/spool", "spool directory path")
+	command.PersistentFlags().StringVarP(&registry, "registry", "r", "localhost:5000", "registry URL")
 	command.PersistentFlags().IntVarP(&queue, "queue", "q", 10, "maximum number of files to queue at once")
-	common.SetCobraFlagsFromEnvironment("RS_", command)
+	common.SetCobraFlagsFromEnvironment("REGISTRY_SPOOLER_", command)
 }
 
 var command = &cobra.Command{
