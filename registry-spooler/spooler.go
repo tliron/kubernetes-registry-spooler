@@ -13,18 +13,19 @@ func Spool(registryUrl string, path string) {
 
 	processor := NewProcessor(registryUrl, queue)
 	go processor.Run()
+	defer processor.Close()
 
 	fileInfos, err := ioutil.ReadDir(path)
 	common.FailOnError(err)
 	for _, fileInfo := range fileInfos {
-		processor.Add(filepath.Join(path, fileInfo.Name()))
+		processor.Enqueue(filepath.Join(path, fileInfo.Name()))
 	}
 
 	watcher, err := NewWatcher()
 	common.FailOnError(err)
 
 	err = watcher.Add(path, fsnotify.Create, func(path string) {
-		processor.Add(path)
+		processor.Enqueue(path)
 	})
 	common.FailOnError(err)
 	go watcher.Run()

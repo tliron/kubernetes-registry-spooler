@@ -24,8 +24,8 @@ func NewProcessor(registry string, queue int) *Processor {
 	}
 }
 
-func (self *Processor) Add(path string) {
-	self.log.Debugf("queuing: %s", path)
+func (self *Processor) Enqueue(path string) {
+	self.log.Debugf("enqueuing: %s", path)
 	self.work <- path
 }
 
@@ -34,7 +34,6 @@ func (self *Processor) Close() {
 }
 
 func (self *Processor) Run() {
-	defer self.Close()
 	for self.Process() {
 	}
 }
