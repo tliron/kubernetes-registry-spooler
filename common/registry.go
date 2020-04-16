@@ -1,7 +1,6 @@
 package common
 
 import (
-	"compress/gzip"
 	"context"
 	"io"
 	"io/ioutil"
@@ -13,6 +12,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	gzip "github.com/klauspost/pgzip"
 )
 
 func PushLayerToRegistry(readCloser io.ReadCloser, name string) error {
