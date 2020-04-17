@@ -19,11 +19,11 @@ kubectl apply --filename="$ROOT/assets/registry-with-spooler.yaml" --namespace=m
 
 DEPLOYMENT=$(kubectl get deployments --selector=app.kubernetes.io/name=registry --namespace=mynamespace --output=jsonpath={.items[0].metadata.name})
 kubectl wait "deployments/$DEPLOYMENT" --namespace=mynamespace \
-	--for=condition=available
+	--for=condition=Available
 
 POD=$(kubectl get pods --field-selector=status.phase=Running --selector=app.kubernetes.io/name=registry --namespace=mynamespace --output=jsonpath={.items[0].metadata.name})
 kubectl wait "pods/$POD" --namespace=mynamespace \
-	--for=condition=ready
+	--for=condition=ContainersReady
 
 echo POD=$POD
 

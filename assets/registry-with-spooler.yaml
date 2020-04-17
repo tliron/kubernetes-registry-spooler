@@ -40,6 +40,12 @@ spec:
         #   type: sidecar
         # See: https://github.com/kubernetes/enhancements/blob/master/keps/sig-apps/sidecarcontainers.md
         #      https://banzaicloud.com/blog/k8s-sidecars/
+        livenessProbe:
+          httpGet:
+            port: 5000
+        readinessProbe:
+          httpGet:
+            port: 5000
       volumes:
       - name: spool
         emptyDir: {}
