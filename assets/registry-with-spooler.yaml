@@ -22,6 +22,12 @@ spec:
         env:
         - name: REGISTRY_STORAGE_DELETE_ENABLED
           value: 'true'
+        livenessProbe:
+          httpGet:
+            port: 5000
+        readinessProbe:
+          httpGet:
+            port: 5000
       - name: spooler
         image: registry.hub.docker.com/tliron/kubernetes-registry-spooler:latest
         volumeMounts:
@@ -42,10 +48,12 @@ spec:
         #      https://banzaicloud.com/blog/k8s-sidecars/
         livenessProbe:
           httpGet:
-            port: 5000
+            port: 8086
+            path: /live
         readinessProbe:
           httpGet:
-            port: 5000
+            port: 8086
+            path: /ready
       volumes:
       - name: spool
         emptyDir: {}

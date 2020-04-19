@@ -12,6 +12,7 @@ var colorize bool
 var directoryPath string
 var registry string
 var queue int
+var healthPort uint
 
 func init() {
 	command.PersistentFlags().StringVarP(&logTo, "log", "l", "", "log to file (defaults to stderr)")
@@ -20,6 +21,7 @@ func init() {
 	command.PersistentFlags().StringVarP(&directoryPath, "directory", "d", "/spool", "spool directory path")
 	command.PersistentFlags().StringVarP(&registry, "registry", "r", "localhost:5000", "registry URL")
 	command.PersistentFlags().IntVarP(&queue, "queue", "q", 10, "maximum number of files to queue at once")
+	command.PersistentFlags().UintVar(&healthPort, "health-port", 8086, "HTTP port for health check (for liveness and readiness probes)")
 	common.SetCobraFlagsFromEnvironment("REGISTRY_SPOOLER_", command)
 }
 
