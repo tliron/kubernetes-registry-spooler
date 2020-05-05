@@ -10,7 +10,7 @@ import (
 )
 
 type Client struct {
-	Kubernetes           *kubernetes.Clientset
+	Kubernetes           kubernetes.Interface
 	REST                 rest.Interface
 	Config               *rest.Config
 	Namespace            string
@@ -19,7 +19,7 @@ type Client struct {
 	SpoolDirectory       string
 }
 
-func NewClient(kubernetes *kubernetes.Clientset, rest rest.Interface, config *rest.Config, namespace string, spoolerAppName string, spoolerContainerName string, spoolDirectory string) *Client {
+func NewClient(kubernetes kubernetes.Interface, rest rest.Interface, config *rest.Config, namespace string, spoolerAppName string, spoolerContainerName string, spoolDirectory string) *Client {
 	return &Client{
 		Kubernetes:           kubernetes,
 		REST:                 rest,
