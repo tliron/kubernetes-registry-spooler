@@ -45,7 +45,7 @@ func (self *Processor) Process() bool {
 		if strings.HasSuffix(path, "!") {
 			self.Delete(path)
 		} else {
-			self.Push(path)
+			self.Publish(path)
 		}
 
 		if err := os.Remove(path); err == nil {
@@ -61,18 +61,18 @@ func (self *Processor) Process() bool {
 	}
 }
 
-func (self *Processor) Push(path string) {
+func (self *Processor) Publish(path string) {
 	name := self.getImageName(path)
 
 	var err error
 	if strings.HasSuffix(path, ".tar.gz") || strings.HasSuffix(path, ".tgz") {
-		self.log.Infof("pushing gzipped tarball %s to image %s", path, name)
+		self.log.Infof("publishing gzipped tarball %s to image %s", path, name)
 		err = common.PushGzippedTarballToRegistry(path, name)
 	} else if strings.HasSuffix(path, ".tar") {
-		self.log.Infof("pushing tarball %s to image %s", path, name)
+		self.log.Infof("publishing tarball %s to image %s", path, name)
 		err = common.PushTarballToRegistry(path, name)
 	} else {
-		self.log.Infof("pushing layer %s to image %s", path, name)
+		self.log.Infof("publishing layer %s to image %s", path, name)
 		if file, err2 := os.Open(path); err2 == nil {
 			err = common.PushLayerToRegistry(file, name)
 		} else {
@@ -81,9 +81,9 @@ func (self *Processor) Push(path string) {
 	}
 
 	if err == nil {
-		self.log.Infof("pushed image %s", name)
+		self.log.Infof("published image %s", name)
 	} else {
-		self.log.Errorf("could not push image %s: %s", name, err.Error())
+		self.log.Errorf("could not publish image %s: %s", name, err.Error())
 	}
 }
 

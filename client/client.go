@@ -31,7 +31,7 @@ func NewClient(kubernetes kubernetes.Interface, rest rest.Interface, config *res
 	}
 }
 
-func (self *Client) Push(imageName string, reader io.Reader) error {
+func (self *Client) Publish(imageName string, reader io.Reader) error {
 	if podName, err := self.getFirstPodName(); err == nil {
 		path := self.getPath(imageName)
 		tempPath := path + "~"
