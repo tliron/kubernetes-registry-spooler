@@ -17,13 +17,6 @@ var log = logging.MustGetLogger("registry-spooler")
 func Spool(registryUrl string, path string) {
 	stopChannel := common.SetupSignalHandler()
 
-	health := healthcheck.NewHandler()
-	log.Info("starting health monitor")
-	go func() {
-		err := http.ListenAndServe(fmt.Sprintf(":%d", healthPort), health)
-		common.FailOnError(err)
-	}()
-
 	processor := NewProcessor(registryUrl, queue)
 	log.Info("starting processor")
 	go processor.Run()
@@ -45,6 +38,13 @@ func Spool(registryUrl string, path string) {
 
 	log.Info("starting watcher")
 	go watcher.Run()
+
+	go func() {
+		log.Info("starting health monitor")
+		health := healthcheck.NewHandler()
+		err := http.ListenAndServe(fmt.Sprintf(":%d", healthPort), health)
+		common.FailOnError(err)
+	}()
 
 	<-stopChannel
 }
