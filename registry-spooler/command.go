@@ -43,6 +43,6 @@ var command = &cobra.Command{
 			common.Fail("must provide \"--directory\" and \"--registry\"")
 		}
 
-		Spool(registry, directoryPath)
+		RunSpooler(registry, directoryPath)
 	},
 }

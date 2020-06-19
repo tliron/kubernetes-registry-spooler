@@ -14,10 +14,10 @@ import (
 
 var log = logging.MustGetLogger("registry-spooler")
 
-func Spool(registryUrl string, path string) {
+func RunSpooler(registryUrl string, path string) {
 	stopChannel := common.SetupSignalHandler()
 
-	processor := NewProcessor(registryUrl, queue)
+	processor := NewPublisher(registryUrl, queue)
 	log.Info("starting processor")
 	go processor.Run()
 	defer processor.Close()

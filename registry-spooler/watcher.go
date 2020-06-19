@@ -45,22 +45,21 @@ func (self *Watcher) Close() error {
 
 func (self *Watcher) Run() {
 	defer self.Close()
-	for {
-		self.Process()
+	for self.Process() {
 	}
 }
 
-func (self *Watcher) Process() {
+func (self *Watcher) Process() bool {
 	select {
 	case event, ok := <-self.watcher.Events:
 		if !ok {
 			self.log.Warning("no more events")
-			return
+			return false
 		}
 
 		// Ignore temporary files
 		if strings.HasSuffix(event.Name, "~") {
-			return
+			break
 		}
 
 		self.log.Debugf("event: %s", event)
@@ -74,9 +73,11 @@ func (self *Watcher) Process() {
 	case err, ok := <-self.watcher.Errors:
 		if !ok {
 			self.log.Warning("no more errors")
-			return
+			return false
 		}
 
 		self.log.Errorf("error: %s", err.Error())
 	}
+
+	return true
 }

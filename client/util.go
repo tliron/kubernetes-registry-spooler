@@ -28,7 +28,7 @@ func (self *Client) getPodNames() ([]string, error) {
 	if pods, err := self.getPods(); err == nil {
 		length := len(pods.Items)
 		if length == 0 {
-			return nil, fmt.Errorf("no pods for app.kubernetes.io/name=\"%s\" in namespace \"%s\"", self.SpoolerAppName, self.Namespace)
+			return nil, fmt.Errorf("no pods for app.kubernetes.io/name=%q in namespace %q", self.SpoolerAppName, self.Namespace)
 		}
 
 		names := make([]string, length)

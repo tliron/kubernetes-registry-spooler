@@ -19,7 +19,7 @@ func init() {
 }
 
 var rootCommand = &cobra.Command{
-	Use:   "registry [IMAGE NAME]",
+	Use:   "registry",
 	Short: "Access the container image registry",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		if colorize {
