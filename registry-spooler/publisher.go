@@ -42,6 +42,7 @@ func (self *Publisher) Run() {
 
 func (self *Publisher) Process() bool {
 	if path, ok := <-self.work; ok {
+		// Lock file
 		lock := flock.New(path)
 		if err := lock.Lock(); err == nil {
 			defer lock.Unlock()
@@ -50,14 +51,24 @@ func (self *Publisher) Process() bool {
 			return true
 		}
 
-		self.log.Debugf("processing %q", path)
+		// File may have already been deleted by another process
+		if _, err := os.Stat(path); err != nil {
+			if os.IsNotExist(err) {
+				self.log.Infof("file %q already deleted", path)
+			} else {
+				self.log.Errorf("could not access file %q: %s", path, err.Error())
+			}
+			return true
+		}
 
+		/// Process
 		if strings.HasSuffix(path, "!") {
 			self.Delete(path[:len(path)-1])
 		} else {
 			self.Publish(path)
 		}
 
+		// Delete file
 		if err := os.Remove(path); err == nil {
 			self.log.Infof("deleted file %q", path)
 		} else {
