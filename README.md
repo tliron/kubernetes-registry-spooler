@@ -1,6 +1,9 @@
 Kubernetes Registry Spooler
 ===========================
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Go Report Card](https://goreportcard.com/badge/github.com/tliron/kubernetes-registry-spooler)](https://goreportcard.com/report/github.com/tliron/kubernetes-registry-spooler)
+
 A sidecar to update an OCI/Docker container image registry using files instead of RESTful HTTP
 calls.
 
