@@ -7,11 +7,14 @@ HERE=$(dirname "$(readlink --canonicalize "$BASH_SOURCE")")
 
 kubectl create namespace mynamespace || true
 kubectl delete --filename="$ROOT/assets/registry-with-spooler.yaml" --namespace=mynamespace || true
+kubectl delete events --all --namespace=mynamespace
 
 m 'building "kubernetes-registry-spool" image'
 
-"$HERE/build-container-image"
-"$HERE/publish-container-image"
+if [ "$1" == '-b' ]; then
+	"$HERE/build-container-image"
+	"$HERE/publish-container-image"
+fi
 
 m 'deploying registry with spooler'
 
@@ -47,9 +50,9 @@ cat /tmp/hello/*.gz | gunzip
 m 'creating container image tarball'
 
 podman rmi localhost:5000/catalog/myimage || true
-podman rmi registry.hub.docker.com/library/hello-world || true
-podman pull registry.hub.docker.com/library/hello-world
-podman tag registry.hub.docker.com/library/hello-world localhost:5000/catalog/myimage
+podman rmi docker.io/library/hello-world || true
+podman pull docker.io/library/hello-world
+podman tag docker.io/library/hello-world localhost:5000/catalog/myimage
 rm --force /tmp/myimage.tar
 podman save localhost:5000/catalog/myimage --output /tmp/myimage.tar
 

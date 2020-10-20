@@ -17,20 +17,34 @@ spec:
         app.kubernetes.io/name: registry
     spec:
       containers:
+
       - name: registry
-        image: registry.hub.docker.com/library/registry:latest
+        image: docker.io/library/registry:latest
+        volumeMounts:
+        - name: secret
+          mountPath: /secret
         env:
         - name: REGISTRY_STORAGE_DELETE_ENABLED
           value: 'true'
+        - name: REGISTRY_HTTP_TLS_CERTIFICATE
+          value: /secret/tls.crt
+        - name: REGISTRY_HTTP_TLS_KEY
+          value: /secret/tls.key
+        # Probes skip certificate validation for HTTPS
         livenessProbe:
           httpGet:
             port: 5000
+            scheme: HTTPS
         readinessProbe:
           httpGet:
             port: 5000
+            scheme: HTTPS
+
       - name: spooler
-        image: registry.hub.docker.com/tliron/kubernetes-registry-spooler:latest
+        image: docker.io/tliron/kubernetes-registry-spooler:latest
         volumeMounts:
+        - name: secret
+          mountPath: /secret
         - name: spool
           mountPath: /spool
         env:
@@ -54,6 +68,42 @@ spec:
           httpGet:
             port: 8086
             path: /ready
+
       volumes:
+      - name: secret
+        secret:
+          secretName: registry
       - name: spool
         emptyDir: {}
+
+---
+
+apiVersion: cert-manager.io/v1
+kind: Issuer
+
+metadata:
+  name: registry
+  labels:
+    app.kubernetes.io/name: registry
+
+spec:
+  selfSigned: {}
+
+---
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+
+metadata:
+  name: registry
+  labels:
+    app.kubernetes.io/name: registry
+
+spec:
+  secretName: registry
+  dnsNames:
+  - localhost
+  uris:
+  - https://github.com/tliron/kubernetes-registry-spooler
+  issuerRef:
+    name: registry

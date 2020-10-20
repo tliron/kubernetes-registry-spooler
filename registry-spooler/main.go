@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/tliron/kubernetes-registry-spooler/common"
+	"github.com/tliron/kutil/util"
 )
 
 func main() {
 	err := command.Execute()
-	common.FailOnError(err)
+	util.FailOnError(err)
 }

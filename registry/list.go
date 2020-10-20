@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/tliron/kubernetes-registry-spooler/common"
+	"github.com/tliron/kutil/util"
 )
 
 func init() {
@@ -13,15 +14,15 @@ func init() {
 
 var listCommand = &cobra.Command{
 	Use:   "list",
-	Short: "List images a container image registry",
+	Short: "List images in a container image registry",
 	Run: func(cmd *cobra.Command, args []string) {
 		List(registry)
 	},
 }
 
 func List(registry string) {
-	images, err := common.ListImages(registry)
-	common.FailOnError(err)
+	images, err := common.ListImages(registry, transport)
+	util.FailOnError(err)
 	for _, image := range images {
 		fmt.Println(image)
 	}

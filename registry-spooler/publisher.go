@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,16 +13,26 @@ import (
 )
 
 type Publisher struct {
-	registry string
-	work     chan string
-	log      *logging.Logger
+	registry  string
+	transport http.RoundTripper
+	work      chan string
+	log       *logging.Logger
 }
 
 func NewPublisher(registry string, queue int) *Publisher {
+	log.Infof("certificate path: %s", certificatePath)
+	log.Infof("force HTTPS: %t", forceHttps)
+
+	transport, err := common.TLSTransport(certificatePath, forceHttps)
+	if err != nil {
+		log.Warningf("%s", err.Error())
+	}
+
 	return &Publisher{
-		registry: registry,
-		work:     make(chan string, queue),
-		log:      logging.MustGetLogger("publisher"),
+		registry:  registry,
+		transport: transport,
+		work:      make(chan string, queue),
+		log:       logging.MustGetLogger("publisher"),
 	}
 }
 
@@ -88,14 +99,14 @@ func (self *Publisher) Publish(path string) {
 	var err error
 	if strings.HasSuffix(path, ".tar.gz") || strings.HasSuffix(path, ".tgz") {
 		self.log.Infof("publishing gzipped tarball %q to image %q", path, name)
-		err = common.PushGzippedTarballToRegistry(path, name)
+		err = common.PushGzippedTarballToRegistry(path, name, self.transport)
 	} else if strings.HasSuffix(path, ".tar") {
 		self.log.Infof("publishing tarball %q to image %q", path, name)
-		err = common.PushTarballToRegistry(path, name)
+		err = common.PushTarballToRegistry(path, name, self.transport)
 	} else {
 		self.log.Infof("publishing layer %q to image %q", path, name)
 		if file, err2 := os.Open(path); err2 == nil {
-			err = common.PushLayerToRegistry(file, name)
+			err = common.PushLayerToRegistry(file, name, self.transport)
 		} else {
 			self.log.Errorf("could not read file %q: %s", path, err2.Error())
 		}
@@ -111,7 +122,7 @@ func (self *Publisher) Publish(path string) {
 func (self *Publisher) Delete(path string) {
 	name := self.getImageName(path)
 	self.log.Infof("deleting image %q", name)
-	if err := common.DeleteFromRegistry(name); err == nil {
+	if err := common.DeleteFromRegistry(name, self.transport); err == nil {
 		self.log.Infof("deleted image %q", name)
 	} else {
 		self.log.Errorf("could not delete image %q: %s", name, err.Error())
