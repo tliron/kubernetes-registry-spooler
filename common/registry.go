@@ -131,13 +131,17 @@ func PullTarballFromRegistry(name string, path string, transport http.RoundTripp
 }
 
 func ListImages(registry string, transport http.RoundTripper) ([]string, error) {
-	if registry_, err := namepkg.NewInsecureRegistry(registry); err == nil {
-		if transport != nil {
+	if transport != nil {
+		if registry_, err := namepkg.NewRegistry(registry); err == nil {
 			return remote.Catalog(context.TODO(), registry_, remote.WithTransport(transport))
 		} else {
-			return remote.Catalog(context.TODO(), registry_)
+			return nil, err
 		}
 	} else {
-		return nil, err
+		if registry_, err := namepkg.NewRegistry(registry, namepkg.Insecure); err == nil {
+			return remote.Catalog(context.TODO(), registry_)
+		} else {
+			return nil, err
+		}
 	}
 }

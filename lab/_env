@@ -8,3 +8,5 @@ ROOT=$(readlink --canonicalize "$_HERE/..")
 GOPATH=${GOPATH:-$HOME/go}
 
 CERT_MANAGER_VERSION=1.0.3
+
+NAMESPACE=mynamespace

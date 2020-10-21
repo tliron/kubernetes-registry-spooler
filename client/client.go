@@ -1,29 +1,41 @@
 package client
 
 import (
-	"bytes"
+	contextpkg "context"
 	"io"
+	"path/filepath"
 	"strings"
 
+	kubernetesutil "github.com/tliron/kutil/kubernetes"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
+//
+// Client
+//
+
 type Client struct {
-	Kubernetes           kubernetes.Interface
-	REST                 rest.Interface
-	Config               *rest.Config
+	Kubernetes kubernetes.Interface
+	REST       rest.Interface
+	Config     *rest.Config
+	Context    contextpkg.Context
+	Stderr     io.Writer
+
 	Namespace            string
 	SpoolerAppName       string
 	SpoolerContainerName string
 	SpoolDirectory       string
 }
 
-func NewClient(kubernetes kubernetes.Interface, rest rest.Interface, config *rest.Config, namespace string, spoolerAppName string, spoolerContainerName string, spoolDirectory string) *Client {
+func NewClient(kubernetes kubernetes.Interface, rest rest.Interface, config *rest.Config, context contextpkg.Context, stderr io.Writer, namespace string, spoolerAppName string, spoolerContainerName string, spoolDirectory string) *Client {
 	return &Client{
-		Kubernetes:           kubernetes,
-		REST:                 rest,
-		Config:               config,
+		Kubernetes: kubernetes,
+		REST:       rest,
+		Config:     config,
+		Context:    contextpkg.TODO(),
+		Stderr:     stderr,
+
 		Namespace:            namespace,
 		SpoolerAppName:       spoolerAppName,
 		SpoolerContainerName: spoolerContainerName,
@@ -35,8 +47,8 @@ func (self *Client) Publish(imageName string, reader io.Reader) error {
 	if podName, err := self.getFirstPodName(); err == nil {
 		path := self.getPath(imageName)
 		tempPath := path + "~"
-		if err := self.WriteToContainer(podName, reader, tempPath); err == nil {
-			return self.Exec(podName, nil, nil, "mv", tempPath, path)
+		if err := self.Write(podName, reader, tempPath); err == nil {
+			return self.Move(podName, tempPath, path)
 		} else {
 			return err
 		}
@@ -48,29 +60,18 @@ func (self *Client) Publish(imageName string, reader io.Reader) error {
 func (self *Client) Delete(imageName string) error {
 	if podName, err := self.getFirstPodName(); err == nil {
 		path := self.getPath(imageName) + "!"
-		return self.Exec(podName, nil, nil, "touch", path)
+		return self.Touch(podName, path)
 	} else {
 		return err
 	}
 }
 
-func (self *Client) PullTarball(imageName string, writer io.Writer) error {
-	if podName, err := self.getFirstPodName(); err == nil {
-		return self.Exec(podName, nil, writer, "registry", "pull", imageName)
-	} else {
-		return err
-	}
+// Utils
+
+func (self *Client) getFirstPodName() (string, error) {
+	return kubernetesutil.GetFirstPodName(self.Context, self.Kubernetes, self.Namespace, self.SpoolerAppName)
 }
 
-func (self *Client) List() ([]string, error) {
-	if podName, err := self.getFirstPodName(); err == nil {
-		var buffer bytes.Buffer
-		if err := self.Exec(podName, nil, &buffer, "registry", "list"); err == nil {
-			return strings.Split(strings.TrimRight(buffer.String(), "\n"), "\n"), nil
-		} else {
-			return nil, err
-		}
-	} else {
-		return nil, err
-	}
+func (self *Client) getPath(imageName string) string {
+	return filepath.Join(self.SpoolDirectory, strings.ReplaceAll(imageName, "/", "\\"))
 }

@@ -9,7 +9,7 @@ if [ -n "$NAMESPACE" ]; then
 	OPTIONS="--namespace=$NAMESPACE"
 fi
 
-kubectl apply --filename="$HERE/../assets/registry-with-spooler.yaml" $OPTIONS
+kubectl apply --filename="$HERE/../assets/registry-with-spooler-sidecar.yaml" $OPTIONS
 
 DEPLOYMENT=$(first_deployment $OPTIONS)
 kubectl wait "deployments/$DEPLOYMENT" --for=condition=available $OPTIONS

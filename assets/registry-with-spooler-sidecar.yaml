@@ -49,10 +49,10 @@ spec:
           mountPath: /spool
         env:
         # Vars with the "REGISTRY_SPOOLER_" prefix become CLI flags 
-        - name: REGISTRY_SPOOLER_directory
-          value: /spool
         - name: REGISTRY_SPOOLER_registry
           value: localhost:5000
+        - name: REGISTRY_SPOOLER_certificate
+          value: /secret/tls.crt
         - name: REGISTRY_SPOOLER_verbose
           value: '2'
         # A future version of Kubernetes may allow for this:

@@ -57,9 +57,9 @@ Let's deploy our registry with the spooler sidecar:
     kubectl create namespace mynamespace
     scripts/install mynamespace
 
-We are using our [sample spec](assets/registry-with-spooler.yaml) that you can use as is or modify.
-As you can see, it's a very straightforward spec and you could adapt the technique of adding a
-sidecar to more elaborate registry servers, such as [Quay](https://github.com/quay/quay) or
+We are using our [sample spec](assets/registry-with-spooler-sidecar.yaml) that you can use as is or
+modify. As you can see, it's a very straightforward spec and you could adapt the technique of adding
+a sidecar to more elaborate registry servers, such as [Quay](https://github.com/quay/quay) or
 [Harbor](https://github.com/goharbor/harbor). To install:
 
 Also note that this spec uses our
@@ -126,7 +126,7 @@ Pulling from the Registry
 
     scripts/pull hello mynamespace > hello.tar
 
-[This works](scripts/pull) by using a `registry` tool that we've included in the sidecar.
+[This works](scripts/pull) by using a `registry-client` tool that we've included in the sidecar.
 
 Note that the pulled file will *always* be a tarball, so it's a good idea to always use the `.tar`
 extension, as we did here. You could pull and untar in one line, like so:

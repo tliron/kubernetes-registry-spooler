@@ -6,20 +6,18 @@ import (
 	"encoding/pem"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/tliron/kutil/util"
 )
 
-func TLSTransport(certificatePath string, forceHttps bool) (http.RoundTripper, error) {
+func TLSRoundTripper(certificatePath string) (http.RoundTripper, error) {
 	if certPool, err := CertPool(certificatePath); err == nil {
-		var transport http.RoundTripper
-		transport = &http.Transport{
+		// We need to force HTTPS because go-containerregistry will attempt to drop down to HTTP for local addresses
+		return util.NewForceHTTPSRoundTripper(&http.Transport{
 			TLSClientConfig: &tls.Config{
 				RootCAs: certPool,
 			},
-		}
-		if forceHttps {
-			transport = NewForceHTTPSRoundTripper(transport)
-		}
-		return transport, nil
+		}), nil
 	} else {
 		return nil, err
 	}
@@ -42,28 +40,4 @@ func Certificate(certificatePath string) (*x509.Certificate, error) {
 	} else {
 		return nil, err
 	}
-}
-
-//
-// ForceHTTPSRoundTripper
-//
-
-type ForceHTTPSRoundTripper struct {
-	roundTripper http.RoundTripper
-}
-
-func NewForceHTTPSRoundTripper(roundTripper http.RoundTripper) *ForceHTTPSRoundTripper {
-	return &ForceHTTPSRoundTripper{roundTripper}
-}
-
-// http.RoundTripper interface
-func (self *ForceHTTPSRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
-	if request.URL.Scheme != "https" {
-		// Rewrite URL
-		url := *request.URL
-		url.Scheme = "https"
-		request.URL = &url
-	}
-
-	return self.roundTripper.RoundTrip(request)
 }

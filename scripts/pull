@@ -17,4 +17,4 @@ fi
 
 POD=$(first_pod $OPTIONS)
 
-kubectl exec "$POD" --container=spooler $OPTIONS -- registry pull "$IMAGE"
+kubectl exec "$POD" --container=spooler $OPTIONS -- registry-client pull "$IMAGE" --certificate=/secret/tls.crt

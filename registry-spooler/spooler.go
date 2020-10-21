@@ -9,6 +9,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/heptiolabs/healthcheck"
 	"github.com/op/go-logging"
+	"github.com/tliron/kubernetes-registry-spooler/common"
 	"github.com/tliron/kutil/util"
 )
 
@@ -17,7 +18,15 @@ var log = logging.MustGetLogger("registry-spooler")
 func RunSpooler(registryUrl string, path string) {
 	stopChannel := util.SetupSignalHandler()
 
-	processor := NewPublisher(registryUrl, queue)
+	var roundTripper http.RoundTripper
+	if certificatePath != "" {
+		log.Infof("certificate path: %s", certificatePath)
+		var err error
+		roundTripper, err = common.TLSRoundTripper(certificatePath)
+		util.FailOnError(err)
+	}
+
+	processor := NewPublisher(registryUrl, roundTripper, queue)
 	log.Info("starting processor")
 	go processor.Run()
 	defer processor.Close()

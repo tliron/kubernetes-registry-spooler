@@ -13,7 +13,6 @@ var colorize string
 var directoryPath string
 var registry string
 var certificatePath string
-var forceHttps bool
 var queue int
 var healthPort uint
 
@@ -24,7 +23,6 @@ func init() {
 	command.PersistentFlags().StringVarP(&directoryPath, "directory", "d", "/spool", "spool directory path")
 	command.PersistentFlags().StringVarP(&registry, "registry", "r", "localhost:5000", "registry URL")
 	command.PersistentFlags().StringVarP(&certificatePath, "certificate", "c", "/secret/tls.crt", "registry TLS certificate file path (in PEM format)")
-	command.PersistentFlags().BoolVarP(&forceHttps, "force-https", "s", false, "force HTTPS connections to registry (HTTP is used by default for local addresses)")
 	command.PersistentFlags().IntVarP(&queue, "queue", "q", 10, "maximum number of files to queue at once")
 	command.PersistentFlags().UintVar(&healthPort, "health-port", 8086, "HTTP port for health check (for liveness and readiness probes)")
 
@@ -37,6 +35,7 @@ var command = &cobra.Command{
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		err := terminal.ProcessColorizeFlag(colorize)
 		util.FailOnError(err)
+
 		if logTo == "" {
 			util.ConfigureLogging(verbose, nil)
 		} else {
