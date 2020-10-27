@@ -22,7 +22,7 @@ func init() {
 	command.PersistentFlags().StringVarP(&colorize, "colorize", "z", "true", "colorize output (boolean or \"force\")")
 	command.PersistentFlags().StringVarP(&directoryPath, "directory", "d", "/spool", "spool directory path")
 	command.PersistentFlags().StringVarP(&registry, "registry", "r", "localhost:5000", "registry URL")
-	command.PersistentFlags().StringVarP(&certificatePath, "certificate", "c", "/secret/tls.crt", "registry TLS certificate file path (in PEM format)")
+	command.PersistentFlags().StringVarP(&certificatePath, "certificate", "c", "", "registry TLS certificate file path (in PEM format)")
 	command.PersistentFlags().IntVarP(&queue, "queue", "q", 10, "maximum number of files to queue at once")
 	command.PersistentFlags().UintVar(&healthPort, "health-port", 8086, "HTTP port for health check (for liveness and readiness probes)")
 
