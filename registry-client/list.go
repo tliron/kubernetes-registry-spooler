@@ -21,7 +21,7 @@ var listCommand = &cobra.Command{
 }
 
 func List(registry string) {
-	images, err := common.ListImages(registry, roundTripper)
+	images, err := common.NewClient(roundTripper, username, password).ListImages(registry)
 	util.FailOnError(err)
 	for _, image := range images {
 		fmt.Println(image)

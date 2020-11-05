@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	namepkg "github.com/google/go-containerregistry/pkg/name"
-	containerregistrypkg "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -17,18 +17,38 @@ import (
 	gzip "github.com/klauspost/pgzip"
 )
 
-func PushLayerToRegistry(readCloser io.ReadCloser, name string, transport http.RoundTripper) error {
+type Client struct {
+	transport     http.RoundTripper
+	authenticator authn.Authenticator
+}
+
+func NewClient(transport http.RoundTripper, username string, password string) *Client {
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+
+	authenticator := authn.Anonymous
+	if username != "" {
+		authenticator = authn.FromConfig(authn.AuthConfig{
+			Username: username,
+			Password: password,
+		})
+	}
+
+	return &Client{
+		transport:     transport,
+		authenticator: authenticator,
+	}
+}
+
+func (self *Client) PushLayerToRegistry(readCloser io.ReadCloser, name string) error {
 	if tag, err := namepkg.NewTag(name); err == nil {
 		// See: https://github.com/google/go-containerregistry/issues/707
 		layer := stream.NewLayer(ioutil.NopCloser(readCloser))
 		//layer = stream.NewLayer(readCloser)
 
 		if image, err := mutate.AppendLayers(empty.Image, layer); err == nil {
-			if transport != nil {
-				return remote.Write(tag, image, remote.WithTransport(transport))
-			} else {
-				return remote.Write(tag, image)
-			}
+			return remote.Write(tag, image, remote.WithAuth(self.authenticator), remote.WithTransport(self.transport))
 		} else {
 			return err
 		}
@@ -37,14 +57,10 @@ func PushLayerToRegistry(readCloser io.ReadCloser, name string, transport http.R
 	}
 }
 
-func PushTarballToRegistry(path string, name string, transport http.RoundTripper) error {
+func (self *Client) PushTarballToRegistry(path string, name string) error {
 	if tag, err := namepkg.NewTag(name); err == nil {
 		if image, err := tarball.ImageFromPath(path, &tag); err == nil {
-			if transport != nil {
-				return remote.Write(tag, image, remote.WithTransport(transport))
-			} else {
-				return remote.Write(tag, image)
-			}
+			return remote.Write(tag, image, remote.WithAuth(self.authenticator), remote.WithTransport(self.transport))
 		} else {
 			return err
 		}
@@ -53,7 +69,7 @@ func PushTarballToRegistry(path string, name string, transport http.RoundTripper
 	}
 }
 
-func PushGzippedTarballToRegistry(path string, name string, transport http.RoundTripper) error {
+func (self *Client) PushGzippedTarballToRegistry(path string, name string) error {
 	if tag, err := namepkg.NewTag(name); err == nil {
 		opener := func() (io.ReadCloser, error) {
 			if reader, err := os.Open(path); err == nil {
@@ -64,11 +80,7 @@ func PushGzippedTarballToRegistry(path string, name string, transport http.Round
 		}
 
 		if image, err := tarball.Image(opener, &tag); err == nil {
-			if transport != nil {
-				return remote.Write(tag, image, remote.WithTransport(transport))
-			} else {
-				return remote.Write(tag, image)
-			}
+			return remote.Write(tag, image, remote.WithAuth(self.authenticator), remote.WithTransport(self.transport))
 		} else {
 			return err
 		}
@@ -77,17 +89,13 @@ func PushGzippedTarballToRegistry(path string, name string, transport http.Round
 	}
 }
 
-func DeleteFromRegistry(name string, transport http.RoundTripper) error {
+func (self *Client) DeleteFromRegistry(name string) error {
 	if tag, err := namepkg.NewTag(name); err == nil {
 		if image, err := remote.Image(tag); err == nil {
 			if hash, err := image.Digest(); err == nil {
 				digest := tag.Digest(hash.String())
 
-				if transport != nil {
-					return remote.Delete(digest, remote.WithTransport(transport))
-				} else {
-					return remote.Delete(digest)
-				}
+				return remote.Delete(digest, remote.WithAuth(self.authenticator), remote.WithTransport(self.transport))
 			} else {
 				return err
 			}
@@ -99,16 +107,9 @@ func DeleteFromRegistry(name string, transport http.RoundTripper) error {
 	}
 }
 
-func PullTarballFromRegistry(name string, path string, transport http.RoundTripper) error {
+func (self *Client) PullTarballFromRegistry(name string, path string) error {
 	if tag, err := namepkg.NewTag(name); err == nil {
-		var image containerregistrypkg.Image
-		if transport != nil {
-			image, err = remote.Image(tag, remote.WithTransport(transport))
-		} else {
-			image, err = remote.Image(tag)
-		}
-
-		if err == nil {
+		if image, err := remote.Image(tag, remote.WithAuth(self.authenticator), remote.WithTransport(self.transport)); err == nil {
 			var writer io.Writer
 			if path == "" {
 				writer = os.Stdout
@@ -130,18 +131,20 @@ func PullTarballFromRegistry(name string, path string, transport http.RoundTripp
 	}
 }
 
-func ListImages(registry string, transport http.RoundTripper) ([]string, error) {
-	if transport != nil {
-		if registry_, err := namepkg.NewRegistry(registry); err == nil {
-			return remote.Catalog(context.TODO(), registry_, remote.WithTransport(transport))
-		} else {
-			return nil, err
-		}
+func (self *Client) ListImages(registry string) ([]string, error) {
+	if registry_, err := self.newRegistry(registry); err == nil {
+		return remote.Catalog(context.TODO(), registry_, remote.WithAuth(self.authenticator), remote.WithTransport(self.transport))
 	} else {
-		if registry_, err := namepkg.NewRegistry(registry, namepkg.Insecure); err == nil {
-			return remote.Catalog(context.TODO(), registry_)
-		} else {
-			return nil, err
-		}
+		return nil, err
+	}
+}
+
+// Utils
+
+func (self *Client) newRegistry(registry string) (namepkg.Registry, error) {
+	if self.transport != nil {
+		return namepkg.NewRegistry(registry)
+	} else {
+		return namepkg.NewRegistry(registry, namepkg.Insecure)
 	}
 }

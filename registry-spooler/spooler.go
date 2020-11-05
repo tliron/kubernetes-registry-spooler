@@ -26,7 +26,7 @@ func RunSpooler(registryUrl string, path string) {
 		util.FailOnError(err)
 	}
 
-	processor := NewPublisher(registryUrl, roundTripper, queue)
+	processor := NewPublisher(registryUrl, roundTripper, username, password, queue)
 	log.Info("starting processor")
 	go processor.Run()
 	defer processor.Close()

@@ -13,18 +13,18 @@ import (
 )
 
 type Publisher struct {
-	registry     string
-	roundTripper http.RoundTripper
-	work         chan string
-	log          *logging.Logger
+	registry string
+	client   *common.Client
+	work     chan string
+	log      *logging.Logger
 }
 
-func NewPublisher(registry string, roundTripper http.RoundTripper, queue int) *Publisher {
+func NewPublisher(registry string, roundTripper http.RoundTripper, username string, password string, queue int) *Publisher {
 	return &Publisher{
-		registry:     registry,
-		roundTripper: roundTripper,
-		work:         make(chan string, queue),
-		log:          logging.MustGetLogger("publisher"),
+		registry: registry,
+		client:   common.NewClient(roundTripper, username, password),
+		work:     make(chan string, queue),
+		log:      logging.MustGetLogger("publisher"),
 	}
 }
 
@@ -91,14 +91,14 @@ func (self *Publisher) Publish(path string) {
 	var err error
 	if strings.HasSuffix(path, ".tar.gz") || strings.HasSuffix(path, ".tgz") {
 		self.log.Infof("publishing gzipped tarball %q to image %q", path, name)
-		err = common.PushGzippedTarballToRegistry(path, name, self.roundTripper)
+		err = self.client.PushGzippedTarballToRegistry(path, name)
 	} else if strings.HasSuffix(path, ".tar") {
 		self.log.Infof("publishing tarball %q to image %q", path, name)
-		err = common.PushTarballToRegistry(path, name, self.roundTripper)
+		err = self.client.PushTarballToRegistry(path, name)
 	} else {
 		self.log.Infof("publishing layer %q to image %q", path, name)
 		if file, err2 := os.Open(path); err2 == nil {
-			err = common.PushLayerToRegistry(file, name, self.roundTripper)
+			err = self.client.PushLayerToRegistry(file, name)
 		} else {
 			self.log.Errorf("could not read file %q: %s", path, err2.Error())
 		}
@@ -114,7 +114,7 @@ func (self *Publisher) Publish(path string) {
 func (self *Publisher) Delete(path string) {
 	name := self.getImageName(path)
 	self.log.Infof("deleting image %q", name)
-	if err := common.DeleteFromRegistry(name, self.roundTripper); err == nil {
+	if err := self.client.DeleteFromRegistry(name); err == nil {
 		self.log.Infof("deleted image %q", name)
 	} else {
 		self.log.Errorf("could not delete image %q: %s", name, err.Error())

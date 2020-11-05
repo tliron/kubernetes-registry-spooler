@@ -21,16 +21,31 @@ spec:
       - name: registry
         image: docker.io/library/registry:latest
         volumeMounts:
-        - name: secret
-          mountPath: /secret
+        - name: registry
+          mountPath: /var/lib/registry
+        - name: tls
+          mountPath: /tls
+        - name: auth
+          mountPath: /auth
         env:
         - name: REGISTRY_STORAGE_DELETE_ENABLED
           value: 'true'
+        # Secret is optional (it will be randomly generated otherwise)
+        - name: REGISTRY_HTTP_SECRET
+          value: secret
+        # TLS
         - name: REGISTRY_HTTP_TLS_CERTIFICATE
-          value: /secret/tls.crt
+          value: /tls/tls.crt
         - name: REGISTRY_HTTP_TLS_KEY
-          value: /secret/tls.key
-        # Probes skip certificate validation for HTTPS
+          value: /tls/tls.key
+        # Auth
+        - name: REGISTRY_AUTH
+          value: htpasswd
+        - name: REGISTRY_AUTH_HTPASSWD_PATH
+          value: /auth/registry-htpasswd
+        - name: REGISTRY_AUTH_HTPASSWD_REALM
+          value: Registry
+        # Probes skip certificate validation for HTTPS, so self-signed certificates are always OK
         livenessProbe:
           httpGet:
             port: 5000
@@ -43,16 +58,20 @@ spec:
       - name: spooler
         image: docker.io/tliron/kubernetes-registry-spooler:latest
         volumeMounts:
-        - name: secret
-          mountPath: /secret
         - name: spool
           mountPath: /spool
+        - name: tls
+          mountPath: /tls
         env:
         # Vars with the "REGISTRY_SPOOLER_" prefix become CLI flags 
         - name: REGISTRY_SPOOLER_registry
           value: localhost:5000
         - name: REGISTRY_SPOOLER_certificate
-          value: /secret/tls.crt
+          value: /tls/tls.crt
+        - name: REGISTRY_SPOOLER_username
+          value: username
+        - name: REGISTRY_SPOOLER_password
+          value: password
         - name: REGISTRY_SPOOLER_verbose
           value: '2'
         # A future version of Kubernetes may allow for this:
@@ -70,11 +89,16 @@ spec:
             path: /ready
 
       volumes:
-      - name: secret
-        secret:
-          secretName: registry
+      - name: registry
+        emptyDir: {}
       - name: spool
         emptyDir: {}
+      - name: tls
+        secret:
+          secretName: registry-tls
+      - name: auth
+        secret:
+          secretName: registry-auth
 
 ---
 
@@ -100,7 +124,7 @@ metadata:
     app.kubernetes.io/name: registry
 
 spec:
-  secretName: registry
+  secretName: registry-tls
   dnsNames:
   - localhost
   uris:

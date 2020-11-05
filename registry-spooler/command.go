@@ -13,6 +13,8 @@ var colorize string
 var directoryPath string
 var registry string
 var certificatePath string
+var username string
+var password string
 var queue int
 var healthPort uint
 
@@ -23,6 +25,8 @@ func init() {
 	command.PersistentFlags().StringVarP(&directoryPath, "directory", "d", "/spool", "spool directory path")
 	command.PersistentFlags().StringVarP(&registry, "registry", "r", "localhost:5000", "registry URL")
 	command.PersistentFlags().StringVarP(&certificatePath, "certificate", "c", "", "registry TLS certificate file path (in PEM format)")
+	command.PersistentFlags().StringVarP(&username, "username", "u", "", "registry authentication username")
+	command.PersistentFlags().StringVarP(&password, "password", "p", "", "registry authentication password")
 	command.PersistentFlags().IntVarP(&queue, "queue", "q", 10, "maximum number of files to queue at once")
 	command.PersistentFlags().UintVar(&healthPort, "health-port", 8086, "HTTP port for health check (for liveness and readiness probes)")
 

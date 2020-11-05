@@ -27,6 +27,6 @@ var pullCommand = &cobra.Command{
 
 func Pull(registry string, name string, path string) {
 	name = fmt.Sprintf("%s/%s", registry, name)
-	err := common.PullTarballFromRegistry(name, path, roundTripper)
+	err := common.NewClient(roundTripper, username, password).PullTarballFromRegistry(name, path)
 	util.FailOnError(err)
 }

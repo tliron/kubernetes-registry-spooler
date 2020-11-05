@@ -14,6 +14,8 @@ var verbose int
 var colorize string
 var registry string
 var certificatePath string
+var username string
+var password string
 
 var roundTripper http.RoundTripper
 
@@ -23,6 +25,8 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&colorize, "colorize", "z", "true", "colorize output (boolean or \"force\")")
 	rootCommand.PersistentFlags().StringVarP(&registry, "registry", "r", "localhost:5000", "registry URL")
 	rootCommand.PersistentFlags().StringVarP(&certificatePath, "certificate", "c", "", "registry TLS certificate file path (in PEM format)")
+	rootCommand.PersistentFlags().StringVarP(&username, "username", "u", "", "registry authentication username")
+	rootCommand.PersistentFlags().StringVarP(&password, "password", "p", "", "registry authentication password")
 }
 
 var rootCommand = &cobra.Command{
