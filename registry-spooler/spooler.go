@@ -26,7 +26,14 @@ func RunSpooler(registryUrl string, path string) {
 		util.FailOnError(err)
 	}
 
-	processor := NewPublisher(registryUrl, roundTripper, username, password, queue)
+	if username != "" {
+		log.Infof("username: %s", username)
+		log.Infof("password: %s", password)
+	} else if token != "" {
+		log.Infof("token: %s", token)
+	}
+
+	processor := NewPublisher(registryUrl, roundTripper, username, password, token, queue)
 	log.Info("starting processor")
 	go processor.Run()
 	defer processor.Close()

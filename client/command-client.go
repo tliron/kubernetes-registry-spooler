@@ -16,9 +16,10 @@ type CommandClient struct {
 	RegistryCertificate string
 	RegistryUsername    string
 	RegistryPassword    string
+	RegistryToken       string
 }
 
-func NewCommandClient(client *Client, registry string, certificate string, username string, password string) *CommandClient {
+func NewCommandClient(client *Client, registry string, certificate string, username string, password string, token string) *CommandClient {
 	if registry == "" {
 		// Default for sidecars
 		registry = "localhost:5000"
@@ -30,6 +31,7 @@ func NewCommandClient(client *Client, registry string, certificate string, usern
 		RegistryCertificate: certificate,
 		RegistryUsername:    username,
 		RegistryPassword:    password,
+		RegistryToken:       token,
 	}
 }
 
@@ -62,6 +64,9 @@ func (self *CommandClient) RegistryClient(writer io.Writer, arguments ...string)
 		}
 		if self.RegistryPassword != "" {
 			arguments = append(arguments, "--password", self.RegistryPassword)
+		}
+		if self.RegistryToken != "" {
+			arguments = append(arguments, "--token", self.RegistryToken)
 		}
 
 		return self.Client.Exec(podName, nil, writer, arguments...)

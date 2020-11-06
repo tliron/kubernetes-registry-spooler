@@ -18,26 +18,29 @@ import (
 )
 
 type Client struct {
-	transport     http.RoundTripper
-	authenticator authn.Authenticator
+	secure  bool
+	options []remote.Option
 }
 
-func NewClient(transport http.RoundTripper, username string, password string) *Client {
-	if transport == nil {
-		transport = http.DefaultTransport
+func NewClient(transport http.RoundTripper, username string, password string, token string) *Client {
+	var options []remote.Option
+
+	if transport != nil {
+		options = append(options, remote.WithTransport(transport))
 	}
 
-	authenticator := authn.Anonymous
-	if username != "" {
-		authenticator = authn.FromConfig(authn.AuthConfig{
-			Username: username,
-			Password: password,
+	if (username != "") || (token != "") {
+		authenticator := authn.FromConfig(authn.AuthConfig{
+			Username:      username,
+			Password:      password,
+			RegistryToken: token,
 		})
+		options = append(options, remote.WithAuth(authenticator))
 	}
 
 	return &Client{
-		transport:     transport,
-		authenticator: authenticator,
+		secure:  transport != nil,
+		options: options,
 	}
 }
 
@@ -48,7 +51,7 @@ func (self *Client) PushLayerToRegistry(readCloser io.ReadCloser, name string) e
 		//layer = stream.NewLayer(readCloser)
 
 		if image, err := mutate.AppendLayers(empty.Image, layer); err == nil {
-			return remote.Write(tag, image, remote.WithAuth(self.authenticator), remote.WithTransport(self.transport))
+			return remote.Write(tag, image, self.options...)
 		} else {
 			return err
 		}
@@ -60,7 +63,7 @@ func (self *Client) PushLayerToRegistry(readCloser io.ReadCloser, name string) e
 func (self *Client) PushTarballToRegistry(path string, name string) error {
 	if tag, err := namepkg.NewTag(name); err == nil {
 		if image, err := tarball.ImageFromPath(path, &tag); err == nil {
-			return remote.Write(tag, image, remote.WithAuth(self.authenticator), remote.WithTransport(self.transport))
+			return remote.Write(tag, image, self.options...)
 		} else {
 			return err
 		}
@@ -80,7 +83,7 @@ func (self *Client) PushGzippedTarballToRegistry(path string, name string) error
 		}
 
 		if image, err := tarball.Image(opener, &tag); err == nil {
-			return remote.Write(tag, image, remote.WithAuth(self.authenticator), remote.WithTransport(self.transport))
+			return remote.Write(tag, image, self.options...)
 		} else {
 			return err
 		}
@@ -91,11 +94,11 @@ func (self *Client) PushGzippedTarballToRegistry(path string, name string) error
 
 func (self *Client) DeleteFromRegistry(name string) error {
 	if tag, err := namepkg.NewTag(name); err == nil {
-		if image, err := remote.Image(tag); err == nil {
+		if image, err := remote.Image(tag, self.options...); err == nil {
 			if hash, err := image.Digest(); err == nil {
 				digest := tag.Digest(hash.String())
 
-				return remote.Delete(digest, remote.WithAuth(self.authenticator), remote.WithTransport(self.transport))
+				return remote.Delete(digest, self.options...)
 			} else {
 				return err
 			}
@@ -109,7 +112,7 @@ func (self *Client) DeleteFromRegistry(name string) error {
 
 func (self *Client) PullTarballFromRegistry(name string, path string) error {
 	if tag, err := namepkg.NewTag(name); err == nil {
-		if image, err := remote.Image(tag, remote.WithAuth(self.authenticator), remote.WithTransport(self.transport)); err == nil {
+		if image, err := remote.Image(tag, self.options...); err == nil {
 			var writer io.Writer
 			if path == "" {
 				writer = os.Stdout
@@ -133,7 +136,7 @@ func (self *Client) PullTarballFromRegistry(name string, path string) error {
 
 func (self *Client) ListImages(registry string) ([]string, error) {
 	if registry_, err := self.newRegistry(registry); err == nil {
-		return remote.Catalog(context.TODO(), registry_, remote.WithAuth(self.authenticator), remote.WithTransport(self.transport))
+		return remote.Catalog(context.TODO(), registry_, self.options...)
 	} else {
 		return nil, err
 	}
@@ -142,7 +145,7 @@ func (self *Client) ListImages(registry string) ([]string, error) {
 // Utils
 
 func (self *Client) newRegistry(registry string) (namepkg.Registry, error) {
-	if self.transport != nil {
+	if self.secure {
 		return namepkg.NewRegistry(registry)
 	} else {
 		return namepkg.NewRegistry(registry, namepkg.Insecure)

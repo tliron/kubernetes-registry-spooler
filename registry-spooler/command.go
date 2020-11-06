@@ -15,6 +15,7 @@ var registry string
 var certificatePath string
 var username string
 var password string
+var token string
 var queue int
 var healthPort uint
 
@@ -27,6 +28,7 @@ func init() {
 	command.PersistentFlags().StringVarP(&certificatePath, "certificate", "c", "", "registry TLS certificate file path (in PEM format)")
 	command.PersistentFlags().StringVarP(&username, "username", "u", "", "registry authentication username")
 	command.PersistentFlags().StringVarP(&password, "password", "p", "", "registry authentication password")
+	command.PersistentFlags().StringVarP(&token, "token", "t", "", "registry authentication token")
 	command.PersistentFlags().IntVarP(&queue, "queue", "q", 10, "maximum number of files to queue at once")
 	command.PersistentFlags().UintVar(&healthPort, "health-port", 8086, "HTTP port for health check (for liveness and readiness probes)")
 

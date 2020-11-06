@@ -16,6 +16,7 @@ var registry string
 var certificatePath string
 var username string
 var password string
+var token string
 
 var roundTripper http.RoundTripper
 
@@ -27,6 +28,7 @@ func init() {
 	rootCommand.PersistentFlags().StringVarP(&certificatePath, "certificate", "c", "", "registry TLS certificate file path (in PEM format)")
 	rootCommand.PersistentFlags().StringVarP(&username, "username", "u", "", "registry authentication username")
 	rootCommand.PersistentFlags().StringVarP(&password, "password", "p", "", "registry authentication password")
+	rootCommand.PersistentFlags().StringVarP(&token, "token", "t", "", "registry authentication token")
 }
 
 var rootCommand = &cobra.Command{

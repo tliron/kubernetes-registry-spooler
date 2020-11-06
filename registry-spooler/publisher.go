@@ -19,10 +19,10 @@ type Publisher struct {
 	log      *logging.Logger
 }
 
-func NewPublisher(registry string, roundTripper http.RoundTripper, username string, password string, queue int) *Publisher {
+func NewPublisher(registry string, roundTripper http.RoundTripper, username string, password string, token string, queue int) *Publisher {
 	return &Publisher{
 		registry: registry,
-		client:   common.NewClient(roundTripper, username, password),
+		client:   common.NewClient(roundTripper, username, password, token),
 		work:     make(chan string, queue),
 		log:      logging.MustGetLogger("publisher"),
 	}
