@@ -10,5 +10,5 @@ require (
 	github.com/klauspost/pgzip v1.2.5
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/spf13/cobra v1.1.1
-	github.com/tliron/kutil v0.1.5
+	github.com/tliron/kutil v0.1.6
 )
